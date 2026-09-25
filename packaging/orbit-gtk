@@ -1,0 +1,9 @@
+#!/usr/bin/python3 -I
+"""Use distribution bindings and the installed, root-owned application."""
+
+import sys
+
+sys.path.insert(0, "/usr/lib/orbit-gtk")
+from orbit_gtk.main import main
+
+raise SystemExit(main())

@@ -1,0 +1,32 @@
+[project]
+name = "orbit-gtk"
+version = "0.2.0"
+description = "Native GTK4 / Adwaita package manager using python-apt"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+orbit-gtk = "orbit_gtk.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["orbit_gtk"]
+
+[tool.hatch.build.targets.sdist]
+include = ["orbit_gtk", "packaging", "tools", "tests", "docs", "README.md", "pyproject.toml", "uv.lock", "setup.sh", "run"]
+
+[tool.uv]
+python-preference = "only-system"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_gui.py" = ["E402"]

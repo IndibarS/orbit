@@ -1,0 +1,11 @@
+#!/usr/bin/python3 -I
+"""Installed privileged entry point: never import from the invoking checkout."""
+
+import os
+import sys
+
+os.environ.pop("APT_CONFIG", None)
+sys.path.insert(0, "/usr/lib/orbit-gtk")
+from orbit_gtk.backend.helper import main
+
+raise SystemExit(main())

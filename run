@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run Orbit GTK from anywhere
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/.venv/bin/python" -m orbit_gtk.main "$@"

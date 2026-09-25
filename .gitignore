@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+.aider*
+# Local upstream reference, not an Orbit runtime dependency.
+nala/

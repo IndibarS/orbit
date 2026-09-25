@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Orbit
+Comment=Manage Debian packages and review system updates
+Exec=orbit-gtk
+Icon=system-software-install
+Terminal=false
+Categories=Settings;PackageManager;
+Keywords=APT;Debian;Packages;Updates;
+StartupNotify=true
+DBusActivatable=false

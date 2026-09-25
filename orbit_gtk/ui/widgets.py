@@ -1,0 +1,84 @@
+"""Plain-text row factories for untrusted package and repository metadata."""
+
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
+from pathlib import Path
+
+from gi.repository import Adw, Gdk, GLib, Gtk
+
+_STATUS_STYLE = None
+
+
+def status_chip(text: str, color: str) -> Gtk.Label:
+    global _STATUS_STYLE
+    if _STATUS_STYLE is None:
+        _STATUS_STYLE = Gtk.CssProvider()
+        _STATUS_STYLE.load_from_string(
+            ".status-chip { border-radius: 999px; padding: 4px 10px; "
+            "background: alpha(currentColor, 0.12); font-weight: 600; }"
+        )
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), _STATUS_STYLE, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+    label = Gtk.Label(label=text, valign=Gtk.Align.CENTER)
+    label.add_css_class("status-chip")
+    label.add_css_class(color)
+    return label
+
+
+def action_row(*, title: str = "", subtitle: str = "", **properties) -> Adw.ActionRow:
+    # GObject construction may apply subtitle before use-markup. Set text only
+    # after disabling markup, otherwise ampersands briefly produce GTK errors.
+    row = Adw.ActionRow(**properties)
+    row.set_use_markup(False)
+    row.set_title(title)
+    row.set_subtitle(subtitle)
+    return row
+
+
+def expander_row(*, title: str = "", subtitle: str = "", **properties) -> Adw.ExpanderRow:
+    row = Adw.ExpanderRow(**properties)
+    row.set_use_markup(False)
+    row.set_title(title)
+    row.set_subtitle(subtitle)
+    return row
+
+
+_ICON_WORKERS = ThreadPoolExecutor(max_workers=2, thread_name_prefix="orbit-icons")
+
+
+@lru_cache(maxsize=256)
+def _load_texture(filename: str, modified: int):
+    try:
+        return Gdk.Texture.new_from_filename(filename)
+    except GLib.Error:
+        return None
+
+
+def _apply_texture(image_ref, texture) -> bool:
+    image = image_ref()
+    if image is not None and texture is not None:
+        image.set_from_paintable(texture)
+    return False
+
+
+def package_icon(package, size: int = 32) -> Gtk.Image:
+    """Decode artwork on workers; only update live widgets on GTK's thread."""
+    image = Gtk.Image(pixel_size=size, valign=Gtk.Align.CENTER)
+    image.set_size_request(size, size)
+    theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+    name = package.icon_name
+    image.set_from_icon_name(
+        name if name and theme.has_icon(name) else "package-x-generic-symbolic"
+    )
+    if package.icon_file:
+        try:
+            modified = Path(package.icon_file).stat().st_mtime_ns
+        except OSError:
+            return image
+        image_ref = image.weak_ref()
+        future = _ICON_WORKERS.submit(_load_texture, package.icon_file, modified)
+        future.add_done_callback(
+            lambda loaded: GLib.idle_add(_apply_texture, image_ref, loaded.result())
+        )
+    return image

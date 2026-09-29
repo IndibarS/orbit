@@ -53,6 +53,9 @@ class AptManager:
     def get_upgradable_packages(self) -> list[PackageInfo]:
         return self._read_packages(self._cache.get_upgradable)
 
+    def get_package(self, name):
+        return self._cache.get_package(name)
+
     def get_package_health(self):
         return self._cache.get_health()
 

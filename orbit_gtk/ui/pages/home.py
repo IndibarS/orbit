@@ -62,6 +62,16 @@ class HomePage(Gtk.ScrolledWindow):
         act_group = Adw.PreferencesGroup(title="Quick Actions")
         self._page.add(act_group)
 
+        local_row = action_row(
+            title="Install a downloaded package",
+            subtitle="Choose a .deb file and review installation",
+        )
+        local_row.set_activatable(True)
+        local_row.add_prefix(Gtk.Image(icon_name="package-x-generic-symbolic"))
+        local_row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
+        local_row.connect("activated", lambda row: self.window._choose_local_package(row))
+        act_group.add(local_row)
+
         upgrade_row = action_row(
             title="Upgrade All Packages",
             subtitle="Apply all pending system upgrades",

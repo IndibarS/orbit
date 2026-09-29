@@ -87,6 +87,11 @@ def mark_changes(cache, action: str, names: Sequence[str]) -> list[dict]:
                     purging.add(pkg.fullname)
     else:
         raise TransactionRejected(f"Unsupported package operation: {action}")
+    return describe_changes(cache, action, purging, reinstalling, autoremove_candidates)
+
+
+def describe_changes(cache, action, purging=(), reinstalling=(), autoremove_candidates=()):
+    """Validate every marked dependency change before exposing a review plan."""
     if cache.broken_count:
         raise TransactionRejected("Dependencies cannot be resolved. No changes were applied.")
     changes = []

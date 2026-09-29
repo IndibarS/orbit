@@ -28,6 +28,24 @@ class BrowsePage(Gtk.Box):
         self._entry.connect("changed", self._on_search_changed)
         search_box.append(self._entry)
         self.append(search_box)
+        local_group = Adw.PreferencesGroup()
+        local_group.set_margin_start(12)
+        local_group.set_margin_end(12)
+        local_group.set_margin_bottom(8)
+        local_row = action_row(
+            title="Install a downloaded package",
+            subtitle="Choose a local .deb file, then review the package and its dependencies.",
+        )
+        local_row.add_prefix(Gtk.Image(icon_name="package-x-generic-symbolic", pixel_size=32))
+        self._local_button = Gtk.Button(label="Browse", valign=Gtk.Align.CENTER)
+        self._local_button.add_css_class("suggested-action")
+        self._local_button.connect(
+            "clicked", lambda button: self.window._choose_local_package(button)
+        )
+        local_row.add_suffix(self._local_button)
+        local_group.add(local_row)
+        self.append(local_group)
+
         self._status = Gtk.Label(label="Type at least 2 characters", xalign=0)
         self._status.set_margin_start(12)
         self._status.set_margin_bottom(4)

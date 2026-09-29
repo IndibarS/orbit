@@ -182,3 +182,54 @@ substitutes example data for missing system data.
 
 See [the validation report](docs/QUALITY.md) for the assessment and release limits,
 and [Nala reference notes](docs/NALA_REFERENCE.md) for the adaptation rationale.
+
+### Command-line entry into the GUI
+
+Run `uv run orbit-gtk <command>` from the checkout, or `orbit-gtk <command>`
+after installing the Debian package. Commands open the existing Orbit window
+when it is already running. System changes still require the GUI review and
+administrator authentication; unattended `-y` / `--yes` is intentionally unsupported.
+
+```sh
+orbit-gtk update
+orbit-gtk upgrade
+orbit-gtk full-upgrade          # dist-upgrade is an alias
+orbit-gtk install gimp
+orbit-gtk remove gimp
+orbit-gtk purge gimp
+orbit-gtk reinstall gimp
+orbit-gtk autoremove
+orbit-gtk search text editor
+orbit-gtk show gimp             # info is an alias
+orbit-gtk list --installed
+orbit-gtk list --upgradable
+orbit-gtk history
+orbit-gtk clean                 # review archive cleanup; keeps repository lists
+orbit-gtk fetch                 # benchmark mirrors; select/save them in the GUI
+orbit-gtk install ./downloaded-package.deb
+```
+
+`list` defaults to Installed; an optional search term filters that list.
+`--help` and `--version` work without a graphical display. This is a supported
+subset of Nala-style commands, not a drop-in Nala command-line replacement.
+Commands received while a package operation is active are refused with a toast;
+they are not silently queued for later execution.
+
+### Local Debian packages
+
+Use **Browse → Install a downloaded package → Browse**, the matching
+**Home → Quick Actions** entry, or the `install` command
+above, or **Open With → Orbit** on a `.deb` after installing the desktop entry.
+`orbit-gtk install-local /path/to/package.deb` and `orbit-gtk /path/to/package.deb`
+are also supported. Relative paths resolve from the calling terminal's directory.
+
+Orbit accepts one regular archive at a time. It stages a private copy, checks
+architecture/conflicts/dependencies using `apt.debfile`, and reviews the package
+and repository dependency changes together. Repository dependencies retain APT
+signature checks; a local archive itself is not authenticated by repository
+signatures. Missing dependencies may require internet access. Download failure
+prevents the local install and is shown in the GUI. A later maintainer-script
+failure can leave dependencies installed or the package partially configured;
+Home's package-health warning helps identify that state. Holds and downgrades
+are rejected. Mixed local/repository requests and batches of local archives
+are not supported yet.

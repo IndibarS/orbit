@@ -181,14 +181,14 @@ def run():
         config.write_text(apt_pkg.config.dump())
         environment = dict(os.environ, APT_CONFIG=str(config))
 
-        def helper(action, answer):
+        def helper(action, answer, target="orbit-integration-fixture"):
             process = subprocess.run(
                 [
                     sys.executable,
                     "-m",
                     "orbit_gtk.backend.helper",
                     action,
-                    "orbit-integration-fixture",
+                    target,
                 ],
                 input=answer + "\n",
                 capture_output=True,
@@ -402,6 +402,115 @@ def run():
         print(
             "PASS: real installation stages address the same architecture-qualified rows as downloads"
         )
+        from orbit_gtk.backend.local_deb import install_local
+
+        # Exercise an archive absent from the repository index, with a repository
+        # dependency, without giving the host dpkg database write access.
+        dependency = base / "local-dependency"
+        (dependency / "DEBIAN").mkdir(parents=True)
+        (dependency / "DEBIAN/control").write_text(
+            "Package: orbit-local-dependency\nVersion: 1\nArchitecture: all\n"
+            "Maintainer: Orbit Tests <test@example.invalid>\nDescription: Local dependency fixture\n"
+        )
+        dependency_archive = transition_repo / "local-dependency.deb"
+        subprocess.run(
+            ["dpkg-deb", "--build", "--root-owner-group", str(dependency), str(dependency_archive)],
+            check=True,
+        )
+        publish_transition(time.time() + 300)
+        directory = base / "local-package"
+        (directory / "DEBIAN").mkdir(parents=True)
+        (directory / "DEBIAN/control").write_text(
+            "Package: orbit-local-fixture\nVersion: 1\nArchitecture: all\n"
+            "Depends: orbit-local-dependency\nInstalled-Size: 1\n"
+            "Maintainer: Orbit Tests <test@example.invalid>\nDescription: Local fixture\n"
+        )
+        local_archive = base / "local package.deb"
+        subprocess.run(
+            ["dpkg-deb", "--build", "--root-owner-group", str(directory), str(local_archive)],
+            check=True,
+        )
+        assert not install_local(str(local_archive), emit, lambda plan: False)
+        with apt.Cache() as cached:
+            assert (
+                "orbit-local-fixture" not in cached
+                or not cached["orbit-local-fixture"].is_installed
+            )
+        with apt.Cache() as cached:
+            assert not cached["orbit-local-dependency"].is_installed
+        missing_dependency = base / "missing-dependency.deb"
+        dependency_archive.rename(missing_dependency)
+        try:
+            install_local(str(local_archive), emit, approve)
+        except RuntimeError as error:
+            assert "download failed" in str(error).lower(), error
+        else:
+            raise AssertionError("Missing dependency archive must prevent local installation")
+        missing_dependency.rename(dependency_archive)
+        assert install_local(str(local_archive), emit, approve)
+        with apt.Cache() as cached:
+            assert cached["orbit-local-fixture"].is_installed
+            assert cached["orbit-local-dependency"].is_installed
+        assert install_local(str(local_archive), emit, approve)
+        assert plans[-1]["changes"][-1]["action"] == "reinstall"
+        subprocess.run(
+            [str(wrapper), "--set-selections"],
+            input="orbit-local-fixture hold\n",
+            text=True,
+            check=True,
+            env=dpkg_env,
+        )
+        try:
+            install_local(str(local_archive), emit, approve)
+        except ValueError as error:
+            assert "held" in str(error), error
+        else:
+            raise AssertionError("Held local packages must not be reinstalled")
+        subprocess.run(
+            [str(wrapper), "--set-selections"],
+            input="orbit-local-fixture install\n",
+            text=True,
+            check=True,
+            env=dpkg_env,
+        )
+        control = directory / "DEBIAN/control"
+        control.write_text(control.read_text().replace("Version: 1", "Version: 0.5"))
+        older_archive = base / "older.deb"
+        subprocess.run(
+            ["dpkg-deb", "--build", "--root-owner-group", str(directory), str(older_archive)],
+            check=True,
+        )
+        try:
+            install_local(str(older_archive), emit, approve)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("A local archive must not silently downgrade installed packages")
+        local_events = [
+            payload
+            for kind, payload in events
+            if kind == "progress" and payload.get("package") == "orbit-local-fixture:amd64"
+        ]
+        assert any(payload["message"] == "Unpacking…" for payload in local_events)
+        assert any(payload["message"] == "Installed" for payload in local_events)
+        corrupt = base / "corrupt.deb"
+        corrupt.write_text("not an archive")
+        try:
+            install_local(str(corrupt), emit, approve)
+        except (SystemError, ValueError, apt_pkg.Error):
+            pass
+        else:
+            raise AssertionError("Corrupt local archives must be rejected")
+        print(
+            "PASS: local archive review, cancellation, install, reinstall and malformed-archive rejection"
+        )
+        local_cancelled, local_review = helper("install-local", "cancel", str(local_archive))
+        assert local_cancelled.returncode == 2, local_cancelled.stdout
+        local_applied, local_result = helper("install-local", "apply", str(local_archive))
+        assert local_applied.returncode == 0, (local_applied.stdout, local_applied.stderr)
+        assert any(event.get("local_archive") == "local package.deb" for event in local_review)
+        assert local_result[-1]["event"] == "complete"
+        print("PASS: actual local-install helper protocol, cancellation and approval")
         print("Plans:", [p["changes"] for p in plans])
         print("Installation phases:", sorted(set(statuses)))
 

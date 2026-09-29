@@ -2,7 +2,8 @@
 Type=Application
 Name=Orbit
 Comment=Manage Debian packages and review system updates
-Exec=orbit-gtk
+Exec=orbit-gtk %f
+MimeType=application/vnd.debian.binary-package;application/x-deb;
 Icon=system-software-install
 Terminal=false
 Categories=Settings;PackageManager;

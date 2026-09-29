@@ -385,6 +385,65 @@ class GuiTests(unittest.TestCase):
         plan.finish(True)
         self.assertEqual(plan._progress_state["example:amd64"], ("Completed", 100))
 
+    def test_visible_local_install_control_opens_filtered_chooser(self):
+        from unittest.mock import MagicMock, patch
+
+        from gi.repository import Gio
+
+        page = self.window._pages["browse"]
+        self.window.navigate("browse")
+        self.assertTrue(page._local_button.get_visible())
+        self.assertEqual(page._local_button.get_label(), "Browse")
+        if os.environ.get("ORBIT_LOCAL_SCREENSHOT"):
+            self.window.set_default_size(800, 640)
+            start = time.monotonic()
+            self.spin(lambda: time.monotonic() - start > 0.5)
+            subprocess.run(
+                ["import", "-window", "root", os.environ["ORBIT_LOCAL_SCREENSHOT"]], check=True
+            )
+        chooser = MagicMock()
+        with (
+            patch("orbit_gtk.ui.window.Gtk.FileDialog", return_value=chooser),
+            patch.object(self.window, "install_local") as install,
+        ):
+            page._local_button.emit("clicked")
+            chooser.open.assert_called_once()
+            filters = chooser.set_filters.call_args.args[0]
+            self.assertEqual(filters.get_item(0).get_name(), "Debian packages (.deb)")
+            chooser.open_finish.return_value = Gio.File.new_for_path("/tmp/downloaded package.deb")
+            callback = chooser.open.call_args.args[2]
+            callback(chooser, None)
+            install.assert_called_once_with("/tmp/downloaded package.deb")
+        self.window._operation_active = True
+        with patch("orbit_gtk.ui.window.Gtk.FileDialog") as create:
+            page._local_button.emit("clicked")
+            create.assert_not_called()
+        self.window._operation_active = False
+
+    def test_command_routes_to_pages_and_review(self):
+        from unittest.mock import patch
+
+        from orbit_gtk.cli import parse_command
+
+        for command, page in (
+            ("history", "history"),
+            ("list --installed", "installed"),
+            ("list --upgradable", "updates"),
+            ("search editor", "browse"),
+        ):
+            self.window.dispatch_command(parse_command(command.split()))
+            self.assertEqual(self.window._stack.get_visible_child_name(), page)
+        with patch.object(self.window, "run_privileged") as run:
+            self.window.dispatch_command(parse_command(["install", "bash"]))
+            self.assertEqual(run.call_args.args[1][-2:], ["install", "bash"])
+            self.window.dispatch_command(parse_command(["install", "./local.deb"], "/tmp/caller"))
+            self.assertEqual(run.call_args.args[1][-2:], ["install-local", "/tmp/caller/local.deb"])
+            run.reset_mock()
+            self.window._operation_active = True
+            self.window.dispatch_command(parse_command(["remove", "bash"]))
+            run.assert_not_called()
+            self.window._operation_active = False
+
     def test_full_upgrade_uses_inline_review(self):
         from unittest.mock import patch
 

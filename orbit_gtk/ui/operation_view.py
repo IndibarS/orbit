@@ -240,6 +240,11 @@ class OperationView(Gtk.Box):
             if purging
             else "Local configuration files are kept. Package service restarts may occur."
         )
+        if plan.get("local_archive"):
+            self._configuration_note.set_label(
+                f"Local archive: {plan['local_archive']}\nOnly install files from a source you trust. "
+                "This archive is not authenticated by repository signatures. Local configuration files are kept."
+            )
         self._apply.remove_css_class("suggested-action" if removing else "destructive-action")
         self._apply.add_css_class("destructive-action" if removing else "suggested-action")
         self._phase.set_label("Review package changes")

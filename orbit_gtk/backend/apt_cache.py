@@ -137,6 +137,11 @@ class OrbitAptCache:
             best = nsmallest(max(0, limit), matches, key=lambda item: item[:2])
             return [self._package_info(package) for _, _, package in best]
 
+    def get_package(self, name):
+        with self._lock:
+            cache = self._require_cache()
+            return self._package_info(cache[name]) if name in cache else None
+
     def get_health(self) -> PackageHealth:
         """Inspect dpkg states without executing a repair or assuming rollback."""
         with self._lock:

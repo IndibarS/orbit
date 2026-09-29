@@ -150,6 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser("clean").add_argument("targets", nargs="*")
     for name in ("install", "remove", "purge", "reinstall"):
         commands.add_parser(name).add_argument("packages", nargs="+")
+    commands.add_parser("install-local").add_argument("path")
     mirrors = commands.add_parser("set-mirrors")
     mirrors.add_argument("--suite", required=True)
     mirrors.add_argument("--urls", nargs="+", required=True)
@@ -216,6 +217,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     emit,
                     lambda plan: approve(plan, emit),
                 ):
+                    return 2
+            elif args.command == "install-local":
+                from orbit_gtk.backend.local_deb import install_local
+
+                if not install_local(args.path, emit, lambda plan: approve(plan, emit)):
                     return 2
             elif args.command == "update":
                 update(emit)

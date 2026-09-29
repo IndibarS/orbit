@@ -29,7 +29,7 @@ each new workflow needs dependency review, clear progress and recovery tests.
 | History | APT/Nala parsing, action chips and lazy grouped rows | Replay/undo with availability and reversal checks |
 | Application icons/screenshots | AppStream metadata, optional fallback | More distro catalogues and image formats |
 | Package holds and version selection | Holds displayed/respected; editing absent | Reviewed state changes and version/hold persistence tests |
-| Local .deb files | Absent | Validate archive identity, resolve dependencies and review trusted local file |
+| Local .deb files | Single-archive chooser, CLI/file association, staged copy, dependency review and isolated lifecycle tests | Multi-archive dependency resolution and broader maintainer-script testing |
 | Full upgrades | Implemented with inline removal review and isolated dependency-transition tests | Wider real-package transition matrix |
 | Batch selections | Absent | Persistent pending plan, undo selection, stale-cache reconciliation |
 | Package changelogs/dependency inspection | Absent | Accessible detail tabs, cancellation, size/time limits |
@@ -42,7 +42,7 @@ each new workflow needs dependency review, clear progress and recovery tests.
 ## Order of work
 
 1. Finish package safety and recovery acceptance before broadening privileged operations.
-2. Add reviewed holds/version selection, local archives and batch selection.
+2. Add reviewed holds/version selection, multi-archive installation and batch selection.
 3. Complete catalogue scaling and accessible keyboard/screen-reader interaction.
 4. Add richer discovery and additional backends with visible source identity.
 

@@ -81,7 +81,7 @@ class OrbitWindow(Adw.ApplicationWindow):
             icon_name="view-refresh-symbolic", tooltip_text="Refresh package lists"
         )
         refresh_button.connect("clicked", self._on_refresh_lists)
-        self._header.pack_end(refresh_button)
+        self._header.pack_start(refresh_button)
         content_toolbar.add_top_bar(self._header)
         self._stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
         content_toolbar.set_content(self._stack)
@@ -160,6 +160,111 @@ class OrbitWindow(Adw.ApplicationWindow):
         title = self._titles[key]
         self._content_page.set_title(title)
         self._header.set_title_widget(Adw.WindowTitle(title=title))
+
+    def navigate(self, key):
+        row = self._nav_list.get_first_child()
+        while row:
+            if row.get_name() == key:
+                self._nav_list.select_row(row)
+                return
+            row = row.get_next_sibling()
+
+    def dispatch_command(self, request):
+        command = request.command
+        if not command:
+            return
+        if self._operation_active:
+            self.show_toast("Finish the current operation, then run the command again")
+            return
+        if command in {"update", "upgrade", "full-upgrade"}:
+            self.navigate("updates")
+            self._pages["updates"].start_operation(
+                command.replace("-", " ").capitalize(), self.apt_manager.helper_command(command)
+            )
+        elif command in {"install", "remove", "purge", "reinstall", "autoremove"}:
+            self.navigate(
+                "cleanup"
+                if command == "autoremove"
+                else "browse"
+                if command == "install"
+                else "installed"
+            )
+            self.run_privileged(
+                command.capitalize(),
+                self.apt_manager.helper_command(command, *getattr(request, "packages", [])),
+            )
+        elif command == "install-local":
+            self.install_local(request.path)
+        elif command in {"search", "list"}:
+            page = (
+                "browse"
+                if command == "search"
+                else "updates"
+                if request.upgradable
+                else "installed"
+            )
+            self.navigate(page)
+            query = " ".join(request.query) if command == "search" else request.query
+            if page != "updates":
+                self._pages[page]._entry.set_text(query)
+        elif command == "show":
+            self.navigate("browse")
+
+            def fetch():
+                try:
+                    package = self.apt_manager.get_package(request.package)
+                    if package is None:
+                        raise ValueError(f"Package not found: {request.package}")
+                    GLib.idle_add(self.show_package_details, package)
+                except Exception as error:
+                    GLib.idle_add(self.show_toast, str(error))
+
+            threading.Thread(target=fetch, daemon=True).start()
+        elif command == "fetch":
+            self.navigate("mirrors")
+            self._pages["mirrors"]._on_benchmark(None)
+        elif command == "history":
+            self.navigate("history")
+        elif command == "clean":
+            self.navigate("cleanup")
+            self.confirm_and_run(
+                "Clean downloaded archives",
+                "Remove cached .deb archives. Installed packages are kept.",
+                self.apt_manager.helper_command("clean", "apt_cache"),
+            )
+
+    def install_local(self, path):
+        self.navigate("browse")
+        self.run_privileged(
+            "Install local package", self.apt_manager.helper_command("install-local", path)
+        )
+
+    def _choose_local_package(self, _button):
+        if self._operation_active:
+            self.show_toast("Finish the current package operation first")
+            return
+        chooser = Gtk.FileDialog(
+            title="Install local Debian package", accept_label="Review package"
+        )
+        files = Gtk.FileFilter(name="Debian packages (.deb)")
+        files.add_pattern("*.deb")
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(files)
+        chooser.set_filters(filters)
+
+        def chosen(dialog, result):
+            try:
+                selected = dialog.open_finish(result)
+                path = selected.get_path()
+                if path:
+                    self.install_local(path)
+                else:
+                    self.show_toast("Download the package to a local folder first")
+            except GLib.Error as error:
+                if not error.matches(Gtk.dialog_error_quark(), Gtk.DialogError.DISMISSED):
+                    self.show_toast(f"Could not open the package chooser: {error.message}")
+
+        chooser.open(self, None, chosen)
 
     def focus_search(self) -> None:
         key = self._stack.get_visible_child_name()

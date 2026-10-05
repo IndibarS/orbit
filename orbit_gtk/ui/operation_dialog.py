@@ -1,6 +1,6 @@
 """Dialog host for operations outside the inline Updates page."""
 
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.ui.operation_view import OperationView
 
@@ -21,6 +21,19 @@ class OperationDialog(Adw.Dialog):
             self.set_can_close(True)
             if on_done:
                 on_done(success)
+            if self.view.dismiss_automatically:
+                host = self.get_root()
+                if hasattr(host, "show_toast"):
+                    host.show_toast(
+                        "Operation cancelled" if self.view._cancelled else "Operation completed"
+                    )
+
+                def dismiss():
+                    if self.get_mapped():
+                        self.close()
+                    return False
+
+                GLib.idle_add(dismiss)
 
         self.view = OperationView(title, command, on_done=completed, on_close=self.close)
         self.view._heading.set_visible(False)  # The dialog header already names the operation.

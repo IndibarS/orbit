@@ -11,8 +11,9 @@ from threading import local
 from orbit_gtk.backend.appstream import PackageMetadata
 from orbit_gtk.backend.apt_cache import AptCacheUnavailable, OrbitAptCache
 from orbit_gtk.backend.history import load_transaction_history
-from orbit_gtk.backend.mirrors import detect_system_suite, read_orbit_mirrors
+from orbit_gtk.backend.mirrors import read_orbit_mirrors
 from orbit_gtk.backend.models import CleanupItem, HistoryTransaction, PackageInfo
+from orbit_gtk.backend.system_identity import system_identity
 
 
 class AptManager:
@@ -76,23 +77,8 @@ class AptManager:
 
     def get_system_info(self) -> dict[str, str]:
         """Return a coherent system identity for the dashboard and sidebar."""
-        values: dict[str, str] = {}
-        try:
-            for line in (
-                Path("/etc/os-release").read_text(encoding="utf-8", errors="replace").splitlines()
-            ):
-                if "=" in line:
-                    key, value = line.split("=", 1)
-                    values[key] = value.strip().strip('"')
-        except OSError:
-            pass
-
-        distro_name = values.get("NAME") or values.get("ID") or "Debian"
-        suite = detect_system_suite()
         return {
-            "distro": f"{distro_name} ({suite})",
-            "distro_name": distro_name,
-            "suite": suite,
+            **system_identity(),
             "kernel": platform.release(),
             "arch": platform.machine(),
         }

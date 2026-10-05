@@ -282,25 +282,6 @@ def source_settings() -> SourceSettings:
     raise ValueError("No main Debian archive source found. Configure Debian sources first.")
 
 
-def detect_system_suite() -> str:
-    """Determine Debian's suite from os-release, falling back safely to stable."""
-    os_release = Path("/etc/os-release")
-    try:
-        values = dict(
-            line.split("=", 1)
-            for line in os_release.read_text(encoding="utf-8", errors="replace").splitlines()
-            if "=" in line
-        )
-    except OSError:
-        return "stable"
-
-    codename = values.get("VERSION_CODENAME") or values.get("DEBIAN_CODENAME")
-    if codename:
-        return codename.strip().strip('"')
-    pretty_name = values.get("PRETTY_NAME", "").lower()
-    return "sid" if "sid" in pretty_name or "unstable" in pretty_name else "stable"
-
-
 def parse_masterlist(raw: str, architectures: Iterable[str]) -> list[MirrorCandidate]:
     """Parse Debian's master list using Nala's all-enabled-architectures rule."""
     required_arches = tuple(architectures)

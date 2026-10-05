@@ -50,19 +50,22 @@ class PackageDialog(Adw.Dialog):
                             "Download the same version again to restore package files. Local configuration is kept.",
                         )
                     )
-                    choices.extend(
+                    choices.append(
                         (
-                            ("remove", "Remove", "Keep system configuration files."),
-                            (
-                                "purge",
-                                "Remove and purge configuration",
-                                "Also remove package-managed system configuration. Personal files are not removed.",
-                            ),
+                            "remove",
+                            "Remove",
+                            "Review removal before applying. Personal files are kept.",
                         )
+                    )
+                    self._purge_configs = Gtk.CheckButton(label="Purge configuration files")
+                    self._purge_configs.set_tooltip_text(
+                        "Also remove package-managed system configuration files."
                     )
                 for action, title, subtitle in choices:
                     row = action_row(title=title, subtitle=subtitle)
-                    button = Gtk.Button(label="Review", valign=Gtk.Align.CENTER)
+                    button = Gtk.Button(
+                        label="Remove" if action == "remove" else "Review", valign=Gtk.Align.CENTER
+                    )
                     button.add_css_class(
                         "destructive-action"
                         if action in {"remove", "purge"}
@@ -71,9 +74,15 @@ class PackageDialog(Adw.Dialog):
 
                     def activate(_button, selected=action):
                         self.close()
-                        on_action(selected)
+                        on_action(
+                            "purge"
+                            if selected == "remove" and self._purge_configs.get_active()
+                            else selected
+                        )
 
                     button.connect("clicked", activate)
+                    if action == "remove":
+                        row.add_suffix(self._purge_configs)
                     row.add_suffix(button)
                     actions.add(row)
             page.add(actions)

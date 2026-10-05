@@ -20,6 +20,7 @@ class TransactionPlan(Gtk.Box):
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self._progress_state = {}
+        self._completed_stages = set()
         self._bound = {}
         self._names = set()
         self._changes = []
@@ -80,6 +81,7 @@ class TransactionPlan(Gtk.Box):
                     raise ValueError("Invalid package version")
         self._updating = True
         self._progress_state.clear()
+        self._completed_stages.clear()
         self._changes = [dict(change) for change in changes]
         self._names = {change["name"] for change in changes}
         counts = Counter(change["action"] for change in changes)
@@ -167,6 +169,10 @@ class TransactionPlan(Gtk.Box):
             not isinstance(percent, (int, float)) or not math.isfinite(percent)
         ):
             raise ValueError("Invalid package progress")
+        if event.get("stage_complete"):
+            self._completed_stages.add(name)
+        else:
+            self._completed_stages.discard(name)
         self._progress_state[name] = (str(event.get("message", "Working…")), percent)
         if name in self._bound:
             self._paint_progress(name, self._bound[name])
@@ -180,6 +186,9 @@ class TransactionPlan(Gtk.Box):
         bar.set_visible(state is not None)
         if state:
             message, percent = state
+            bar.set_visible(
+                (percent is None or percent < 100) and not message.startswith("Stopped")
+            )
             label.set_label(message)
             for color in ("accent", "success", "error"):
                 label.remove_css_class(color)
@@ -197,7 +206,10 @@ class TransactionPlan(Gtk.Box):
 
     def pulse(self):
         for name, item in self._bound.items():
-            if self._progress_state.get(name, (None, 0))[1] is None:
+            if (
+                name not in self._completed_stages
+                and self._progress_state.get(name, (None, 0))[1] is None
+            ):
                 self._paint_progress(name, item)
 
     def finish(self, success):

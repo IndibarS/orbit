@@ -60,6 +60,7 @@ class LocalProgress(InstallProgress):
             "progress",
             phase="Installing",
             package=self._package_name(pkg, ""),
+            stage_complete=status in {"installed", "not-installed", "config-files"},
             message={
                 "unpacked": "Unpacked",
                 "half-configured": "Configuring…",

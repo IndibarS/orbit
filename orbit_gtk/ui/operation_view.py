@@ -291,7 +291,9 @@ class OperationView(Gtk.Box):
 
     def _finish(self, code: int) -> None:
         self._finished = True
+        self._cancelled = self._cancelled or (code in (126, 127) and not self._error)
         success = code == 0 and self._complete and not self._error
+        self._succeeded = success
         if not self._cancelled:
             self._changes.finish(success)
         self._apply.set_visible(False)
@@ -301,7 +303,7 @@ class OperationView(Gtk.Box):
         self._close.set_sensitive(True)
         self._close.set_label("Done" if success else "Close")
         self._progress.set_fraction(1 if success else 0)
-        self._progress.set_visible(True)
+        self._progress.set_visible(False)
         self._progress.set_text("Complete" if success else "Stopped")
         self._transfer.set_label("")
         if success:
@@ -343,6 +345,12 @@ class OperationView(Gtk.Box):
             widget.add_css_class(color)
         if self._on_done:
             self._on_done(success)
+
+    @property
+    def dismiss_automatically(self):
+        return not self._error and (
+            self._cancelled or (getattr(self, "_succeeded", False) and not self._warning_count)
+        )
 
     def _append(self, text: str) -> None:
         self._log_tail = (self._log_tail + text)[-65536:]

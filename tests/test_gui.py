@@ -107,7 +107,7 @@ class GuiTests(unittest.TestCase):
         from types import SimpleNamespace
         from unittest.mock import patch
 
-        page._operation = SimpleNamespace(_cancelled=False)
+        page._operation = SimpleNamespace(_cancelled=False, dismiss_automatically=False)
         with patch.object(self.window, "refresh_all"):
             page._operation_done(True)
         self.assertTrue(page._row_widgets["example:amd64"]["badge"].get_visible())
@@ -601,7 +601,8 @@ class GuiTests(unittest.TestCase):
         self.assertIn("repository was skipped", dialog.view._status.get_label())
         self.assertTrue(dialog.view._phase.has_css_class("warning"))
         self.assertTrue(dialog.view._details.get_expanded())
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
 
     def test_error_event_cannot_be_overridden_by_success_exit(self):
         import json
@@ -617,7 +618,8 @@ class GuiTests(unittest.TestCase):
         self.spin(lambda: dialog.view._finished)
         self.assertEqual(finished, [False])
         self.assertEqual(dialog.view._phase.get_label(), "Operation failed")
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
 
     def test_malformed_progress_does_not_disable_completion(self):
         import json
@@ -636,7 +638,8 @@ class GuiTests(unittest.TestCase):
         self.assertTrue(dialog.view._close.get_sensitive())
         self.assertEqual(dialog.view._phase.get_label(), "Operation failed")
         self.assertIn("Invalid helper", dialog.view._status.get_label())
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
 
     def test_short_window_keeps_inline_review_scrollable(self):
         import json
@@ -667,8 +670,8 @@ class GuiTests(unittest.TestCase):
         adjustment = scroll.get_vadjustment()
         adjustment.set_value(adjustment.get_upper() - adjustment.get_page_size())
         page._operation._respond(False)
-        self.spin(lambda: page._operation._finished)
-        page._dismiss_operation()
+        self.spin(lambda: page._operation is None)
+        self.assertFalse(self.window._operation_active)
 
     def test_stale_search_results_do_not_replace_new_query(self):
         from orbit_gtk.backend.models import PackageInfo
@@ -688,7 +691,65 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(dialog.view._phase.get_label(), "Completed")
         self.assertLessEqual(len(dialog.view._log_tail), 65536)
         self.assertTrue(dialog.view._close.get_sensitive())
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
+
+    def test_success_dialog_dismisses_with_temporary_message(self):
+        from unittest.mock import patch
+
+        dialog = OperationDialog(
+            "Install",
+            [
+                sys.executable,
+                "-c",
+                "import json; print(json.dumps(dict(event='complete')), flush=True)",
+            ],
+        )
+        closed = []
+        dialog.connect("closed", lambda *_: closed.append(True))
+        with patch.object(self.window, "show_toast") as toast:
+            dialog.present(self.window)
+            self.spin(lambda: bool(closed))
+            toast.assert_called_once_with("Operation completed")
+        self.assertFalse(dialog.view._progress.get_visible())
+
+    def test_authorization_cancel_returns_to_updates_without_close_button(self):
+        page = self.window._pages["updates"]
+        page.start_operation("Refresh", [sys.executable, "-c", "raise SystemExit(126)"])
+        self.spin(lambda: page._operation is None)
+        self.assertFalse(self.window._operation_active)
+        self.assertIsNone(page._operation_slot.get_first_child())
+
+    def test_download_finished_bar_hides_and_install_stage_returns(self):
+        from orbit_gtk.backend.models import PackageInfo
+
+        page = self.window._pages["updates"]
+        page._list.append(page._make_row(PackageInfo(name="example", full_name="example:amd64")))
+        row = page._row_widgets["example:amd64"]
+        page._operation_event(
+            {
+                "event": "package-progress",
+                "package": "example:amd64",
+                "message": "Downloaded",
+                "percent": 100,
+            }
+        )
+        self.assertFalse(row["bar"].get_visible())
+        self.assertTrue(row["status"].get_visible())
+        page._operation_event(
+            {"event": "progress", "package": "example:amd64", "message": "Unpacking", "percent": 50}
+        )
+        self.assertTrue(row["bar"].get_visible())
+        page._operation_event(
+            {
+                "event": "progress",
+                "package": "example:amd64",
+                "message": "Installed example",
+                "stage_complete": True,
+            }
+        )
+        self.assertFalse(row["bar"].get_visible())
+        self.assertNotIn("example:amd64", page._pulsing)
 
     def test_package_details_actions_and_hold_guard(self):
         from orbit_gtk.backend.models import PackageInfo
@@ -711,12 +772,10 @@ class GuiTests(unittest.TestCase):
             for w in descendants(dialog.get_child())
             if isinstance(w, Adw.ActionRow)
         }
-        self.assertIn("Remove and purge configuration", rows)
-        button = next(
-            w
-            for w in descendants(rows["Remove and purge configuration"])
-            if isinstance(w, Gtk.Button)
-        )
+        self.assertNotIn("Remove and purge configuration", rows)
+        self.assertFalse(dialog._purge_configs.get_active())
+        dialog._purge_configs.set_active(True)
+        button = next(w for w in descendants(rows["Remove"]) if isinstance(w, Gtk.Button))
         button.emit("clicked")
         self.assertEqual(actions, ["purge"])
         held = PackageDialog(
@@ -846,7 +905,8 @@ print(json.dumps({"event":"complete"}),flush=True)
         dialog.view._proc.stdin.flush()
         self.spin(lambda: bool(finished))
         self.assertEqual(finished, [True])
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
 
     def test_large_plan_filters_keep_full_review_and_removal_warning(self):
         script = """import json
@@ -890,7 +950,8 @@ raise SystemExit(2)
         dialog.view._respond(False)
         self.spin(lambda: dialog.view._finished)
         self.assertTrue(dialog.view._cancelled)
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
 
     def test_unknown_plan_action_is_rejected_before_page_callback(self):
         from orbit_gtk.ui.operation_view import OperationView
@@ -920,7 +981,8 @@ raise SystemExit(2)
         self.assertEqual(finished, [False])
         self.assertEqual(dialog.view._progress.get_fraction(), 0)
         self.assertEqual(dialog.view._status.get_label(), "Download failed")
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
 
     def test_cancelled_plan_is_not_committed(self):
         script = """import json
@@ -939,7 +1001,8 @@ raise SystemExit(2)
         self.spin(lambda: bool(finished))
         self.assertEqual(dialog.view._phase.get_label(), "Cancelled")
         self.assertEqual(finished, [False])
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
 
     def test_upgrades_stay_inline_with_independent_package_bars(self):
         from orbit_gtk.backend.models import PackageInfo
@@ -1001,8 +1064,8 @@ print(json.dumps({"event":"complete"}),flush=True)
         self.assertEqual(first["status"].get_label(), "Completed")
         self.assertEqual(first["bar"].get_fraction(), 1)
         self.assertEqual(second["bar"].get_fraction(), 1)
-        self.assertTrue(self.window._operation_active)
-        page._dismiss_operation()
+        self.assertIsNone(page._operation)
+        self.assertFalse(first["bar"].get_visible())
         self.assertFalse(self.window._operation_active)
 
     def test_catalogue_controls_lazy_scroll_and_history_colors(self):
@@ -1069,7 +1132,8 @@ print(json.dumps({"event":"complete"}),flush=True)
         )
         dialog.present(self.window)
         self.spin(lambda: dialog.get_mapped())
-        dialog.close()
+        if dialog.get_mapped():
+            dialog.close()
         self.window.set_default_size(600, 720)
         self.spin(lambda: self.window._split.get_collapsed())
         self.window._split.set_show_content(False)

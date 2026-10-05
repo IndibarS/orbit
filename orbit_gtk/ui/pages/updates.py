@@ -245,7 +245,7 @@ class UpdatesPage(Gtk.Box):
         self._stack.set_visible_child_name("list")
         for widgets in self._row_widgets.values():
             if widgets["button"]:
-                widgets["button"].set_sensitive(False)
+                widgets["button"].set_visible(False)
         self._operation = OperationView(
             title,
             command,
@@ -275,7 +275,7 @@ class UpdatesPage(Gtk.Box):
                 # normal-upgrade snapshot kept back. Do not show both states.
                 widgets["badge"].set_visible(False)
                 if widgets["button"]:
-                    widgets["button"].set_sensitive(False)
+                    widgets["button"].set_visible(False)
                 widgets["status"].set_label(f"Queued for {change['action']}")
                 widgets["bar"].set_fraction(0)
                 self._pending.add(key)
@@ -293,7 +293,13 @@ class UpdatesPage(Gtk.Box):
             # APT's install percentage is transaction-wide, not per-package.
             # Only acquisition byte counts provide a real per-package fraction.
             percent = event.get("percent") if kind == "package-progress" else None
-            if percent is None:
+            finished = event.get("stage_complete", False) or (
+                percent is not None and percent >= 100
+            )
+            widgets["bar"].set_visible(not finished)
+            if finished:
+                self._pulsing.discard(key)
+            elif percent is None:
                 self._pulsing.add(key)
                 widgets["bar"].pulse()
             else:
@@ -340,6 +346,7 @@ class UpdatesPage(Gtk.Box):
         for key in self._pending:
             widgets = self._row_widgets[key]
             widgets["progress_box"].set_visible(not cancelled)
+            widgets["bar"].set_visible(False)
             widgets["bar"].set_fraction(1 if success else 0)
             widgets["status"].remove_css_class("accent")
             widgets["status"].add_css_class(
@@ -348,11 +355,13 @@ class UpdatesPage(Gtk.Box):
             widgets["status"].set_label(
                 "Completed" if success else "Cancelled" if cancelled else "Stopped — check details"
             )
-        # Keep completed rows visible until Done; other pages get fresh state.
+        if self._operation.dismiss_automatically:
+            self.window.show_toast("Operation cancelled" if cancelled else "Operation completed")
+            self._dismiss_operation()
         self.window.refresh_all()
 
     def _dismiss_operation(self) -> None:
-        if self._running:
+        if self._running or self._operation is None:
             return
         self._operation_slot.remove(self._operation)
         self._operation = None

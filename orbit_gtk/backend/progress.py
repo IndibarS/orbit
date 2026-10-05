@@ -111,6 +111,7 @@ class InstallProgress(base.InstallProgress):
             "progress",
             phase="Installing",
             package=self._package_name(pkg, status),
+            stage_complete=status.startswith(("Installed ", "Removed ", "Completely removed ")),
             message=status,
             percent=percent,
         )

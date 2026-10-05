@@ -84,9 +84,13 @@ promise an absolute time bound for the operating system's DNS resolver.
   package's download/unpacking/configuration status in its own row. Download
   bars use actual byte counts. Installation bars pulse because APT exposes
   an overall installation percentage, not a per-package installation percentage.
-  The overall bar uses APT's reported progress. Rows become complete only after
-  a successful transaction and remain visible until **Done**. Per-package bars
-  stay hidden before download/installation begins.
+  The overall bar uses APT's reported progress. Completed download and installation
+  stages hide their bars. Upgrade buttons disappear during the operation.
+  Successful operations and cancellations return to the page with a temporary
+  message, without a Done/Close step. Failures and completion warnings remain
+  visible for inspection. Per-package bars stay hidden before work begins.
+  Package details offers one Remove action with an optional, unchecked
+  **Purge configuration files** checkbox; either choice opens the dependency review.
   Transaction reviews show colored action counts and searchable package/version
   rows. Filtering is for inspection: Apply always uses the complete reviewed
   plan. Removals receive a prominent warning and destructive Apply styling.

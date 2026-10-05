@@ -35,7 +35,6 @@ class OrbitWindow(Adw.ApplicationWindow):
         self.get_application().set_accels_for_action("win.search", ["<Control>f"])
 
         self._toasts = Adw.ToastOverlay()
-        self.set_content(self._toasts)
         split = Adw.NavigationSplitView()
         self._split = split
         breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 800sp"))
@@ -43,7 +42,7 @@ class OrbitWindow(Adw.ApplicationWindow):
         self.add_breakpoint(breakpoint)
         split.set_min_sidebar_width(200)
         split.set_max_sidebar_width(260)
-        self._toasts.set_child(split)
+        self.set_content(split)
 
         sidebar = Adw.NavigationPage(title="Orbit", tag="sidebar")
         sidebar_toolbar = Adw.ToolbarView()
@@ -84,7 +83,8 @@ class OrbitWindow(Adw.ApplicationWindow):
         self._header.pack_start(refresh_button)
         content_toolbar.add_top_bar(self._header)
         self._stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
-        content_toolbar.set_content(self._stack)
+        self._toasts.set_child(self._stack)
+        content_toolbar.set_content(self._toasts)
         split.set_content(self._content_page)
 
         self._pages: dict[str, Gtk.Widget] = {

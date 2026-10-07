@@ -64,7 +64,7 @@ def run():
             (package / "usr/share/orbit-test").mkdir(parents=True)
             (package / "usr/share/orbit-test/version").write_text(version)
             (package / "etc").mkdir()
-            (package / "etc/orbit-fixture.conf").write_text("test configuration\n")
+            (package / "etc/orbit-fixture.conf").write_text(f"test configuration {version}\n")
             (package / "DEBIAN/conffiles").write_text("/etc/orbit-fixture.conf\n")
             (package / "DEBIAN/control").write_text(
                 f"Package: orbit-integration-fixture\nVersion: {version}\nArchitecture: all\n"
@@ -142,6 +142,11 @@ def run():
         assert [p["changes"][0]["action"] for p in plans] == ["install", "upgrade", "remove"]
         configuration = root / "etc/orbit-fixture.conf"
         assert configuration.exists(), "Normal removal must retain package configuration"
+        assert execute("purge-config", [], emit, approve)
+        assert not configuration.exists(), "Residual configuration purge must work after removal"
+        assert execute("install", ["orbit-integration-fixture"], emit, approve, {"download_only": True})
+        assert not installed.exists(), "Download only must never install"
+        assert execute("install", ["orbit-integration-fixture"], emit, approve)
         assert execute("install", ["orbit-integration-fixture"], emit, approve)
         assert execute("purge", ["orbit-integration-fixture"], emit, approve)
         assert not configuration.exists(), "Purge must remove package configuration"
@@ -153,6 +158,20 @@ def run():
         assert execute("reinstall", ["orbit-integration-fixture"], emit, approve)
         assert installed.read_text() == "2.0", "Reinstall must restore package files"
         assert plans[-1]["changes"][0]["action"] == "reinstall"
+        configuration.write_text("locally edited configuration\n")
+        publish("1.0")
+        apt_pkg.config.clear("Dpkg::Options")
+        questions = []
+        def answer_configuration(question):
+            questions.append(question)
+            return "Install package version"
+        assert execute("install", ["orbit-integration-fixture"], emit, approve, {"versions": {"orbit-integration-fixture": "1.0"}, "conffile": "ask"}, question=answer_configuration)
+        assert questions and "locally edited" in questions[0]["details"]
+        assert configuration.read_text() == "test configuration 1.0\n"
+        apt_pkg.config.set("Dpkg::Options::", "--force-confold")
+        publish("2.0")
+        assert execute("upgrade", [], emit, approve)
+        print("PASS: reviewed downgrade and actual dpkg configuration diff/choice")
         # Mark only the disposable fixture automatic in the isolated database.
         (root / "var/lib/apt/extended_states").write_text(
             "Package: orbit-integration-fixture\nArchitecture: amd64\nAuto-Installed: 1\n\n"
@@ -511,6 +530,23 @@ def run():
         assert any(event.get("local_archive") == "local package.deb" for event in local_review)
         assert local_result[-1]["event"] == "complete"
         print("PASS: actual local-install helper protocol, cancellation and approval")
+        from orbit_gtk.backend.local_batch import install_batch
+        archives = []
+        for name, dependency in (("orbit-batch-dependency", ""), ("orbit-batch-app", "Depends: orbit-batch-dependency (= 1)\n")):
+            directory = base / name
+            (directory / "DEBIAN").mkdir(parents=True)
+            (directory / "DEBIAN/control").write_text(f"Package: {name}\nVersion: 1\nArchitecture: all\n{dependency}Maintainer: Orbit Tests <test@example.invalid>\nDescription: Batch fixture\n")
+            archive = base / (name + ".deb")
+            subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(directory), str(archive)], check=True, stdout=subprocess.DEVNULL)
+            archives.append(str(archive))
+        assert not install_batch(archives, [], emit, lambda _: False)
+        with apt.Cache() as cached:
+            assert "orbit-batch-app" not in cached or not cached["orbit-batch-app"].is_installed
+        assert install_batch(archives, [], emit, approve)
+        with apt.Cache() as cached:
+            assert cached["orbit-batch-app"].is_installed
+            assert cached["orbit-batch-dependency"].is_installed
+        print("PASS: local batch dependency resolution, cancellation and installation")
         print("Plans:", [p["changes"] for p in plans])
         print("Installation phases:", sorted(set(statuses)))
 

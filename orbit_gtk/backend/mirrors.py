@@ -1,8 +1,8 @@
-"""Debian mirror discovery and source-file helpers.
+"""Distribution mirror discovery and source-file helpers.
 
 The selection flow follows the useful parts of Nala's legacy ``fetch``
-implementation: use Debian's master list, keep only mirrors which advertise
-every enabled architecture, and measure the Release file for the active suite.
+implementation: discover distro archives, preserve their source settings, and
+measure compatible Release files without refreshing package indexes.
 This module intentionally contains no GTK imports so that it is usable by the
 privileged helper and straightforward to test.
 """
@@ -12,7 +12,7 @@ from __future__ import annotations
 import platform
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from http.client import HTTPException
 from pathlib import Path
 from time import monotonic
@@ -111,12 +111,12 @@ COUNTRY_FLAGS: Final[dict[str, str]] = {
 
 
 class MirrorDiscoveryError(RuntimeError):
-    """Raised when Debian's master mirror list cannot be obtained."""
+    """Raised when a distribution mirror catalogue cannot be obtained."""
 
 
 @dataclass(frozen=True, slots=True)
 class MirrorCandidate:
-    """A mirror advertised by Debian's master list."""
+    """A package archive advertised by a distribution catalogue."""
 
     domain: str
     url: str
@@ -125,11 +125,26 @@ class MirrorCandidate:
 
 @dataclass(frozen=True, slots=True)
 class SourceSettings:
-    """The parts of a Debian source stanza that Orbit must preserve."""
+    """The parts of an archive source stanza that Orbit must preserve."""
 
     suite: str
     components: tuple[str, ...]
     signed_by: str | None = None
+    provider: str = "debian"
+    architectures: tuple[str, ...] = ()
+    uris: tuple[str, ...] = field(default=(), compare=False)
+    archive: str = "merged"
+    source_packages: bool = False
+
+    @property
+    def repository(self):
+        suffix = f":{self.archive}" if self.provider == "devuan" else ""
+        return f"{self.provider}:{self.suite}{suffix}"
+
+    @property
+    def label(self):
+        suffix = f" · {self.archive}" if self.provider == "devuan" else ""
+        return f"{PROVIDERS[self.provider][0]} · {self.suite}{suffix}"
 
 
 def flag(country_code: str) -> str:
@@ -221,69 +236,230 @@ def iter_deb822_sources(path: Path) -> Iterable[dict[str, str]]:
             yield fields
 
 
-def _source_paths() -> Iterable[Path]:
-    preferred = Path("/etc/apt/sources.list.d/debian.sources")
-    if preferred.is_file():
-        yield preferred
-    source_dir = preferred.parent
-    try:
-        for path in sorted(source_dir.glob("*.sources")):
-            if path != preferred and path != ORBIT_SOURCES_PATH:
-                yield path
-    except OSError:
-        return
-
-
 class UnsupportedMirrorDistribution(ValueError):
-    """The system's repositories are outside the Debian mirror catalogue."""
+    """No enabled archive can be matched to a supported mirror provider."""
 
 
-def source_settings() -> SourceSettings:
-    """Infer the active Debian suite/components without mutating user sources."""
-    identity = platform.freedesktop_os_release()
-    if identity.get("ID") != "debian":
-        raise UnsupportedMirrorDistribution("Mirror selection currently supports Debian only.")
-    for path in _source_paths():
-        for fields in iter_deb822_sources(path):
-            if "deb" not in fields.get("types", "deb").split():
-                continue
-            if not any(
-                urlparse(uri).path.rstrip("/") == "/debian"
-                for uri in fields.get("uris", "").split()
-            ):
-                continue
-            suites = fields.get("suites", "").split()
-            suites = [
-                suite
-                for suite in suites
-                if not suite.endswith(("-security", "-updates", "-backports"))
-            ]
-            if not suites:
-                continue
-            components = tuple(fields.get("components", "main").split()) or ("main",)
-            return SourceSettings(
-                suite=validate_suite(suites[0]),
-                components=components,
-                signed_by="/usr/share/keyrings/debian-archive-keyring.gpg",
-            )
+PROVIDERS = {
+    "devuan": ("Devuan", "Devuan", "https://pkgmaster.devuan.org/mirror_list.txt"),
+    "debian": ("Debian", "Debian", "https://mirror-master.debian.org/status/Mirrors.masterlist"),
+    "ubuntu": ("Ubuntu", "Ubuntu", "https://launchpad.net/ubuntu/+archivemirrors-rss"),
+    "linuxmint": ("Linux Mint", "linuxmint", "https://www.linuxmint.com/mirrors.php"),
+    "kali": ("Kali", "Kali", "https://http.kali.org/README?mirrorlist"),
+}
+KEY_PREFIXES = {
+    "devuan": "devuan-archive-",
+    "debian": "debian-archive-",
+    "ubuntu": "ubuntu-archive-",
+    "linuxmint": "linuxmint-",
+    "kali": "kali-archive-",
+}
+OFFICIAL_HOSTS = {
+    "devuan": {"deb.devuan.org", "pkgmaster.devuan.org"},
+    "debian": {"deb.debian.org", "ftp.debian.org"},
+    "ubuntu": {"archive.ubuntu.com", "ports.ubuntu.com"},
+    "linuxmint": {"packages.linuxmint.com", "fastly.linuxmint.io"},
+    "kali": {"http.kali.org", "kali.download", "archive.kali.org"},
+}
 
-    # Traditional one-line Debian sources remain common on older installations.
-    paths = [Path("/etc/apt/sources.list"), *Path("/etc/apt/sources.list.d").glob("*.list")]
+
+def source_records(paths=None):
+    """Read enabled binary stanzas from both APT source formats."""
+    explicit_paths = paths is not None
+    if paths is None:
+        directory = Path("/etc/apt/sources.list.d")
+        paths = [
+            Path("/etc/apt/sources.list"),
+            *sorted(directory.glob("*.list")),
+            *sorted(directory.glob("*.sources")),
+        ]
     for path in paths:
+        if path == ORBIT_SOURCES_PATH and not explicit_paths:
+            continue
+        if path.suffix == ".sources":
+            yield from (f for f in iter_deb822_sources(path) if "deb" in f.get("types", "").split())
+            continue
         try:
             lines = path.read_text().splitlines()
-        except OSError:
+        except FileNotFoundError:
             continue
         for line in lines:
-            match = re.match(r"^\s*deb\s+(?:\[[^]]*\]\s+)?(\S+)\s+(\S+)\s+([^#]+)", line)
-            if match and urlparse(match[1]).path.rstrip("/") == "/debian":
-                suite = validate_suite(match[2])
-                if suite.endswith(("-security", "-updates", "-backports")):
+            match = re.match(r"^\s*deb\s+(?:\[([^]]*)\]\s+)?(\S+)\s+(\S+)\s+([^#]+)", line)
+            if not match:
+                continue
+            options = dict(item.split("=", 1) for item in (match[1] or "").split() if "=" in item)
+            fields = {"uris": match[2], "suites": match[3], "components": match[4].strip()}
+            if "signed-by" in options:
+                fields["signed-by"] = options["signed-by"]
+            if "arch" in options:
+                fields["architectures"] = options["arch"].replace(",", " ")
+            # Do not propagate trust bypasses or reinterpret architecture modifiers.
+            if any(k in options for k in ("trusted", "allow-insecure", "arch+", "arch-")):
+                continue
+            yield fields
+
+
+def source_profiles(identity=None, paths=None, lists_dir=Path("/var/lib/apt/lists")):
+    """Discover real distro repositories offline, never infer suites from ID_LIKE."""
+    import apt_pkg
+
+    if identity is None:
+        try:
+            identity = platform.freedesktop_os_release()
+        except OSError:
+            identity = {}
+    distro = identity.get("ID")
+    preferred = {
+        "devuan": ("devuan",),
+        "debian": ("debian",),
+        "ubuntu": ("ubuntu",),
+        "kali": ("kali",),
+        "linuxmint": ("linuxmint", "ubuntu", "debian"),
+    }.get(distro, ())
+    # OS identity orders the UI only. Each enabled archive supplies its own identity.
+    supported = tuple(dict.fromkeys((*preferred, *PROVIDERS)))
+    profiles = {}
+    enabled_arches = get_architectures()
+    for fields in source_records(paths):
+        if any(
+            k in fields
+            for k in ("trusted", "allow-insecure", "architectures-add", "architectures-remove")
+        ):
+            continue
+        key = fields.get("signed-by") or None
+        for uri in fields.get("uris", "").split():
+            try:
+                uri = normalize_mirror_url(uri)
+            except ValueError:
+                continue
+            host = urlparse(uri).hostname
+            for suite in fields.get("suites", "").split():
+                if not _SUITE_RE.fullmatch(suite) or suite.endswith(("-security", "/updates")):
+                    continue  # Dedicated security sources are never mirrored by Orbit.
+                origin = None
+                for release in ("InRelease", "Release"):
+                    file = lists_dir / apt_pkg.uri_to_filename(f"{uri}/dists/{suite}/{release}")
+                    try:
+                        metadata = file.read_text()
+                    except FileNotFoundError:
+                        continue
+                    except (OSError, UnicodeError):
+                        origin = ""
+                        break
+                    origins = re.findall(
+                        r"^Origin:[ \t]*([^\r\n]*)", metadata, re.MULTILINE | re.IGNORECASE
+                    )
+                    # Existing but ambiguous metadata must not fall back to host/key guesses.
+                    origin = origins[0].strip() if len(origins) == 1 else ""
+                    break
+                if origin == "":
                     continue
-                return SourceSettings(
-                    suite, tuple(match[3].split()), "/usr/share/keyrings/debian-archive-keyring.gpg"
+                for provider in supported:
+                    key_matches = bool(key) and all(
+                        Path(k).name.startswith(KEY_PREFIXES[provider])
+                        and k.endswith((".gpg", ".pgp", ".asc"))
+                        and k.startswith("/")
+                        for k in key.split()
+                    )
+                    if key and not key_matches:
+                        continue
+                    known_host = host in OFFICIAL_HOSTS[provider] or (
+                        provider == "ubuntu" and host and host.endswith(".archive.ubuntu.com")
+                    )
+                    if origin:
+                        matches = origin.casefold() == PROVIDERS[provider][1].casefold()
+                    else:
+                        matches = known_host or key_matches
+                    if not matches:
+                        continue
+                    archive = "merged"
+                    if provider == "devuan":
+                        archive = urlparse(uri).path.rstrip("/").rsplit("/", 1)[-1]
+                        if archive not in {"merged", "devuan"}:
+                            continue  # Do not replace a custom archive layout by guessing.
+                    components = tuple(fields.get("components", "main").split())
+                    restrictions = fields.get("architectures", "").split()
+                    arches = tuple(
+                        a for a in enabled_arches if not restrictions or a in restrictions
+                    )
+                    if not arches:
+                        continue
+                    settings = SourceSettings(
+                        suite,
+                        components,
+                        key,
+                        provider,
+                        arches,
+                        (uri,),
+                        archive,
+                        "deb-src" in fields.get("types", "").split(),
+                    )
+                    old = profiles.get(settings.repository)
+                    if old and old != settings:
+                        raise ValueError(
+                            f"Conflicting source settings for {settings.label}; resolve them in APT sources first."
+                        )
+                    if old:
+                        settings = replace(settings, uris=tuple(dict.fromkeys((*old.uris, uri))))
+                    profiles[settings.repository] = settings
+                    break
+    if paths is None and ORBIT_SOURCES_PATH.exists():
+        try:
+            owned = source_profiles(identity, [ORBIT_SOURCES_PATH], lists_dir)
+        except UnsupportedMirrorDistribution:
+            owned = []
+        for settings in owned:
+            previous = profiles.get(settings.repository)
+            if previous:
+                settings = replace(
+                    settings, uris=tuple(dict.fromkeys((*previous.uris, *settings.uris)))
                 )
-    raise ValueError("No main Debian archive source found. Configure Debian sources first.")
+            profiles[settings.repository] = settings
+    if not profiles:
+        raise UnsupportedMirrorDistribution(
+            "No recognized Debian, Ubuntu, Devuan, Linux Mint or Kali archives found. "
+            "Refresh package lists if archive metadata is missing, then try again. "
+            "Unrecognized repositories remain unchanged."
+        )
+    return sorted(profiles.values(), key=lambda p: (supported.index(p.provider), p.suite))
+
+
+def source_settings(repository=None) -> SourceSettings:
+    if repository and repository.startswith("manual:"):
+        parts = repository.split(":")
+        if len(parts) != 5:
+            raise ValueError("Invalid manual archive selection")
+        _, provider, suite, archive, _marker = parts
+        if (
+            provider not in PROVIDERS
+            or archive not in {"merged", "devuan"}
+            or _marker != "explicit"
+        ):
+            raise ValueError("Unsupported manual archive selection")
+        suite = validate_suite(suite)
+        try:
+            profiles = source_profiles()
+        except UnsupportedMirrorDistribution:
+            profiles = []
+        template = next((p for p in profiles if p.provider == provider), None)
+        if template:
+            return replace(template, suite=suite, archive=archive, uris=())
+        keys = sorted(Path("/usr/share/keyrings").glob(KEY_PREFIXES[provider] + "keyring.*"))
+        key = next((k for k in keys if k.is_file() and k.suffix in {".gpg", ".pgp", ".asc"}), None)
+        if key is None:
+            raise ValueError(
+                f"Install the distribution's official {PROVIDERS[provider][0]} archive keyring before adding this repository."
+            )
+        return SourceSettings(
+            suite, ("main",), str(key), provider, get_architectures(), archive=archive
+        )
+    profiles = source_profiles()
+    if repository is None:
+        return profiles[0]
+    for settings in profiles:
+        if settings.repository == repository:
+            return settings
+    raise ValueError("The selected repository is no longer configured. Reload the Mirrors page.")
 
 
 def parse_masterlist(raw: str, architectures: Iterable[str]) -> list[MirrorCandidate]:
@@ -310,7 +486,7 @@ def parse_masterlist(raw: str, architectures: Iterable[str]) -> list[MirrorCandi
     return candidates
 
 
-def fetch_masterlist(timeout: float = 15.0) -> list[MirrorCandidate]:
+def fetch_masterlist(timeout: float = 15.0, architectures=None) -> list[MirrorCandidate]:
     """Fetch and parse Debian's authoritative mirror catalogue."""
     request = Request(MASTERLIST_URL, headers={"User-Agent": "Orbit-Package-Manager/1.0"})
     deadline = monotonic() + timeout
@@ -321,13 +497,17 @@ def fetch_masterlist(timeout: float = 15.0) -> list[MirrorCandidate]:
             )
     except (OSError, HTTPException, ValueError) as error:
         raise MirrorDiscoveryError(f"Unable to download Debian's mirror list: {error}") from error
-    return parse_masterlist(raw, get_architectures())
+    return parse_masterlist(raw, architectures or get_architectures())
 
 
-def read_orbit_mirrors(path: Path = ORBIT_SOURCES_PATH) -> list[str]:
+def read_orbit_mirrors(
+    path: Path = ORBIT_SOURCES_PATH, settings: SourceSettings | None = None
+) -> list[str]:
     """Return only the mirrors configured by Orbit, never unrelated user sources."""
     urls: list[str] = []
     for fields in iter_deb822_sources(path):
+        if settings and not matches_profile(fields, settings):
+            continue
         for url in fields.get("uris", "").split():
             try:
                 normalized = normalize_mirror_url(url)
@@ -344,6 +524,8 @@ def render_orbit_source(urls: Iterable[str], settings: SourceSettings) -> str:
     if not normalized:
         return ""
     suite = validate_suite(settings.suite)
+    if settings.provider not in PROVIDERS:
+        raise ValueError("Unknown mirror provider.")
     if any(not _SUITE_RE.fullmatch(component) for component in settings.components):
         raise ValueError("Invalid archive component.")
     if settings.signed_by and ("\n" in settings.signed_by or "\r" in settings.signed_by):
@@ -351,11 +533,16 @@ def render_orbit_source(urls: Iterable[str], settings: SourceSettings) -> str:
     components = " ".join(settings.components or ("main",))
     lines = [
         "# Managed by Orbit Package Manager. Other APT source files are untouched.",
-        "Types: deb",
+        f"X-Orbit-Repository: {settings.repository}",
+        "Types: deb deb-src" if settings.source_packages else "Types: deb",
         f"URIs: {' '.join(normalized)}",
         f"Suites: {suite}",
         f"Components: {components}",
     ]
+    if settings.architectures:
+        if any(not _SUITE_RE.fullmatch(arch) for arch in settings.architectures):
+            raise ValueError("Invalid architecture.")
+        lines.append(f"Architectures: {' '.join(settings.architectures)}")
     if settings.signed_by:
         lines.append(f"Signed-By: {settings.signed_by}")
     return "\n".join(lines) + "\n"
@@ -399,3 +586,24 @@ def existing_mirror_urls(suite: str, paths=None) -> set[str]:
                 except ValueError:
                     continue
     return found
+
+
+def matches_profile(fields, settings):
+    marker = fields.get("x-orbit-repository")
+    if marker:
+        return marker == settings.repository
+    # Migrate the original Debian-only Orbit stanza without touching other suites.
+    return settings.provider == "debian" and fields.get("suites") == settings.suite
+
+
+def replace_profile(content, urls, settings):
+    """Replace only one repository's owned stanza, preserving other selections."""
+    paragraphs = [
+        part
+        for part in re.split(r"\n\s*\n", content.strip())
+        if part.strip() and not matches_profile(_field_map(part), settings)
+    ]
+    rendered = render_orbit_source(urls, settings)
+    if rendered:
+        paragraphs.append(rendered.strip())
+    return "\n\n".join(paragraphs) + ("\n" if paragraphs else "")

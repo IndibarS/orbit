@@ -12,6 +12,7 @@ from queue import Empty, Queue
 from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.transaction_plan import TransactionPlan
 from orbit_gtk.ui.widgets import expander_row
 
@@ -55,11 +56,11 @@ class OperationView(Gtk.Box):
         self._icon = Gtk.Image(icon_name="emblem-synchronizing-symbolic", pixel_size=40)
         self._icon.set_visible(not compact)
         content.append(self._icon)
-        self._phase = Gtk.Label(label="Authenticating…", wrap=True)
+        self._phase = Gtk.Label(label=tr("Authenticating…"), wrap=True)
         self._phase.add_css_class("title-2")
         content.append(self._phase)
         self._status = Gtk.Label(
-            label="Waiting for administrator authorization", wrap=True, selectable=True
+            label=tr("Waiting for administrator authorization"), wrap=True, selectable=True
         )
         content.append(self._status)
         self._progress = Gtk.ProgressBar(show_text=True)
@@ -78,7 +79,7 @@ class OperationView(Gtk.Box):
         content.append(self._review)
         content.append(self._changes)
 
-        self._details = expander_row(title="Technical details")
+        self._details = expander_row(title=tr("Technical details"))
         self._buffer = Gtk.TextBuffer()
         log = Gtk.TextView(
             buffer=self._buffer,
@@ -96,14 +97,14 @@ class OperationView(Gtk.Box):
 
         footer = Gtk.Box(spacing=12, halign=Gtk.Align.END)
         self.footer = footer
-        self._cancel = Gtk.Button(label="Cancel", visible=False)
+        self._cancel = Gtk.Button(label=tr("Cancel"), visible=False)
         self._cancel.connect("clicked", lambda _: self._respond(False))
         footer.append(self._cancel)
-        self._apply = Gtk.Button(label="Apply changes", visible=False)
+        self._apply = Gtk.Button(label=tr("Apply changes"), visible=False)
         self._apply.add_css_class("suggested-action")
         self._apply.connect("clicked", lambda _: self._respond(True))
         footer.append(self._apply)
-        self._close = Gtk.Button(label="Running…", sensitive=False)
+        self._close = Gtk.Button(label=tr("Running…"), sensitive=False)
         self._close.connect("clicked", lambda _: self._on_close() if self._on_close else None)
         footer.append(self._close)
         content.append(footer)
@@ -178,7 +179,9 @@ class OperationView(Gtk.Box):
         message = str(event.get("message", ""))
         if kind in {"progress", "package-progress"} and event.get("package"):
             self._changes.update_progress(event)
-        if kind == "log":
+        if kind == "cancellable":
+            self._cancel.set_visible(bool(event.get("enabled")))
+        elif kind == "log":
             self._append(message)
         elif kind == "progress":
             self._phase.set_label(event.get("phase", "Working…"))
@@ -200,6 +203,17 @@ class OperationView(Gtk.Box):
             else:
                 self._transfer.set_visible(False)
                 self._transfer.set_label("")
+        elif kind == "question":
+            from orbit_gtk.ui.configuration_question import present_question
+
+            def answer(value):
+                try:
+                    self._proc.stdin.write(json.dumps({"answer": value}) + "\n")
+                    self._proc.stdin.flush()
+                except (OSError, ValueError):
+                    self._status.set_label(tr("The operation is no longer waiting for an answer."))
+
+            present_question(self.get_root(), event, answer)
         elif kind == "plan":
             self._show_plan(event)
         elif kind in {"error", "warning"}:
@@ -220,6 +234,10 @@ class OperationView(Gtk.Box):
             self._on_event(event)
 
     def _show_plan(self, plan: dict) -> None:
+        if plan.get("download_only"):
+            self._append(
+                "Download only: the plan below identifies archives to fetch. No installation or removal will be performed."
+            )
         changes = plan["changes"]
         disk = plan["disk_bytes"]
         for value in (disk, plan["download_bytes"]):
@@ -240,6 +258,16 @@ class OperationView(Gtk.Box):
             if purging
             else "Local configuration files are kept. Package service restarts may occur."
         )
+        if plan.get("conffile") == "replace":
+            self._configuration_note.set_label(
+                tr(
+                    "Modified system configuration files will be replaced by package versions. Services may restart."
+                )
+            )
+        if plan.get("download_only"):
+            self._configuration_note.set_label(
+                tr("Download only: packages will be cached, not installed, removed or configured.")
+            )
         if plan.get("local_archive"):
             self._configuration_note.set_label(
                 f"Local archive: {plan['local_archive']}\nOnly install files from a source you trust. "
@@ -247,17 +275,21 @@ class OperationView(Gtk.Box):
             )
         self._apply.remove_css_class("suggested-action" if removing else "destructive-action")
         self._apply.add_css_class("destructive-action" if removing else "suggested-action")
-        self._phase.set_label("Review package changes")
+        self._phase.set_label(tr("Review package changes"))
         self._icon.set_visible(False)
         self._progress.set_visible(False)
         self._transfer.set_visible(False)
-        self._status.set_label("Nothing will be installed or removed until you apply this plan.")
+        self._status.set_label(
+            tr("Nothing will be installed or removed until you apply this plan.")
+        )
         if removing:
             self._status.set_label(
-                "This plan removes packages. Review the Remove and Purge actions before applying."
+                tr(
+                    "This plan removes packages. Review the Remove and Purge actions before applying."
+                )
             )
         self._progress.set_fraction(0)
-        self._progress.set_text("Waiting for your review")
+        self._progress.set_text(tr("Waiting for your review"))
         self._summary.set_label(
             f"{len(changes):,} package changes · {AptManager.format_size(plan['download_bytes'])} download\n"
             f"{AptManager.format_size(abs(disk))} {'additional disk space' if disk >= 0 else 'disk space freed'}"
@@ -265,6 +297,11 @@ class OperationView(Gtk.Box):
         if plan.get("kept_back"):
             self._summary.set_label(
                 self._summary.get_label() + f"\n{len(plan['kept_back'])} updates kept back by APT"
+            )
+        if plan.get("download_only"):
+            self._phase.set_label(tr("Review package downloads"))
+            self._status.set_label(
+                tr("Only archives will be fetched. Listed package changes will not be applied.")
             )
         self._review.set_visible(True)
         self._cancel.set_visible(True)
@@ -285,7 +322,7 @@ class OperationView(Gtk.Box):
         self._close.set_visible(True)
         self._phase.set_label("Preparing transaction…" if apply else "Cancelling…")
         self._progress.set_visible(True)
-        self._status.set_label("Please keep Orbit open while package changes are applied.")
+        self._status.set_label(tr("Please keep Orbit open while package changes are applied."))
         self._has_percent = False
         self._progress.set_text("")
 
@@ -318,7 +355,7 @@ class OperationView(Gtk.Box):
             self._status.set_label("\n".join(messages))
             self._icon.set_from_icon_name("emblem-ok-symbolic")
         elif self._cancelled or code in (126, 127):
-            self._phase.set_label("Cancelled")
+            self._phase.set_label(tr("Cancelled"))
             self._status.set_label(
                 "No package changes were applied."
                 if self._cancelled
@@ -326,7 +363,7 @@ class OperationView(Gtk.Box):
             )
             self._icon.set_from_icon_name("dialog-information-symbolic")
         else:
-            self._phase.set_label("Operation failed")
+            self._phase.set_label(tr("Operation failed"))
             self._status.set_label(
                 self._error or f"The helper exited with status {code}. See technical details."
             )

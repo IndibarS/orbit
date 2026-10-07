@@ -49,6 +49,9 @@ class PackageInfo:
     is_held: bool = False
     is_held_back: bool = False
     held_reason: str = ""
+    providers: tuple[str, ...] = ()
+    versions: tuple[tuple[str, str, int, bool], ...] = ()
+    relations: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(slots=True)

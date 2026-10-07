@@ -117,14 +117,19 @@ promise an absolute time bound for the operating system's DNS resolver.
   indexes under APT's corresponding locks. Review unused dependencies before
   removing them through APT; configuration files are retained. Failed space
   calculations show an error and Retry rather than claiming the cache is clean.
-- **Mirrors:** benchmark Debian archive Release files and manage an optional
+- **Mirrors:** select an archive/suite, benchmark distro-specific Release files,
+  and manage an optional
   Orbit-owned source file, following Nala fetch: skip mirrors already enabled
   for the release and save without refreshing indexes. Saving finishes inline.
   Existing sources remain active; refresh package lists separately when ready.
   The next refresh can download indexes from each new mirror. The benchmark
   measures a Release-file transfer, not sustained package-download bandwidth.
-  Mirror selection supports Debian only. Derivatives show an explanatory page
-  and continue to use their configured APT repositories for package operations.
+  Debian, Ubuntu, Devuan, Linux Mint and Kali archives have separate providers, recognized
+  from APT sources and cached metadata even on other derivatives. Mint's own archive
+  and Ubuntu/LMDE base remain independent; security sources are preserved.
+  Mirrors must match the suite, components and architectures, and the helper
+  rechecks compatibility before saving. **Clear selection** removes only the
+  selected archive/suite's Orbit entries. See [mirror behavior and limits](docs/MIRRORS.md).
 - **Home:** real package/system statistics, upgrade navigation, cache cleanup,
   and repair of interrupted dpkg configuration.
   Statistics report failures independently, with Retry; cached upgrade counts
@@ -161,8 +166,9 @@ orbit_gtk/
     progress.py            APT callbacks → structured progress events
     helper.py              privilege boundary, cleanup, mirror changes, recovery
     history.py             Nala/APT history readers
-    mirrors.py             Debian sources and mirror discovery
+    mirrors.py             distro archive profiles and scoped source-file updates
     mirror_benchmark.py    bounded concurrent Release-file measurements
+    mirror_catalogues.py   official provider catalogues and compatibility checks
     models.py              typed snapshots without fabricated metrics
   ui/
     window.py              navigation and one-operation-at-a-time coordination
@@ -264,6 +270,8 @@ are not supported yet.
 
 See [the Docker distro matrix](docs/DISTRO-TESTING.md) for reproducible tests on
 Debian, Ubuntu, Linux Mint and Kali, along with coverage and desktop limitations.
+Devuan mirror support has focused regression and live smoke coverage, not a full
+Devuan container/desktop acceptance run.
 Run `python3 tools/test_distros.py` with Docker available. Generated logs and
 results live in Git-ignored `.artifacts/docker/`; disposable containers are removed
 and test images remain cached.
@@ -277,6 +285,7 @@ their own OS identity. With no recognizable sources, Orbit reports the OS codena
 
 - [Validation and remaining release limits](docs/QUALITY.md)
 - [Distro results and repeatable Docker tests](docs/DISTRO-TESTING.md)
+- [Distribution-specific mirrors](docs/MIRRORS.md)
 - [CLI commands and local packages](docs/CLI-AND-LOCAL-PACKAGES.md)
 - [Feature coverage and acceptance backlog](docs/FEATURE-COVERAGE.md)
 - [Nala adaptation notes](docs/NALA_REFERENCE.md)

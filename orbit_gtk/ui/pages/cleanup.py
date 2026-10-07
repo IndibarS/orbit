@@ -6,6 +6,7 @@ from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import CleanupItem
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.widgets import action_row
 
 
@@ -28,10 +29,10 @@ class CleanupPage(Gtk.Box):
         scroll.set_child(self._pref_page)
 
         # ── Summary group ─────────────────────────────────────────── #
-        self._summary_group = Adw.PreferencesGroup(title="Space to Reclaim")
+        self._summary_group = Adw.PreferencesGroup(title=tr("Space to Reclaim"))
         self._pref_page.add(self._summary_group)
 
-        self._total_row = action_row(title="Calculating…", subtitle="")
+        self._total_row = action_row(title=tr("Calculating…"), subtitle="")
         self._total_row.add_prefix(Gtk.Image.new_from_icon_name("drive-harddisk-symbolic"))
         self._spinner_box = Gtk.Box()
         self._spinner = Gtk.Spinner()
@@ -39,27 +40,43 @@ class CleanupPage(Gtk.Box):
         self._spinner_box.append(self._spinner)
         self._total_row.add_suffix(self._spinner_box)
         self._summary_group.add(self._total_row)
-        self._retry = Gtk.Button(label="Retry", valign=Gtk.Align.CENTER, visible=False)
+        self._retry = Gtk.Button(label=tr("Retry"), valign=Gtk.Align.CENTER, visible=False)
         self._retry.connect("clicked", lambda _: self.invalidate())
         self._total_row.add_suffix(self._retry)
 
         # ── Items group with a stable ListBox inside ──────────────── #
         # We use a plain Gtk.ListBox-style approach via ActionRows stored
         # in a separate group. We rebuild by removing individual rows.
-        self._items_group = Adw.PreferencesGroup(title="Items")
+        self._items_group = Adw.PreferencesGroup(title=tr("Items"))
         self._pref_page.add(self._items_group)
         # Keep a flat list of rows so we can remove them individually
         self._item_rows: list[Adw.ActionRow] = []
 
-        dependencies = Adw.PreferencesGroup(title="Unused dependencies")
+        dependencies = Adw.PreferencesGroup(title=tr("Unused dependencies"))
         dependency_row = action_row(
-            title="Review packages no longer needed",
-            subtitle="APT selects unused dependencies. Review every removal before applying; configuration files are kept.",
+            title=tr("Review packages no longer needed"),
+            subtitle=tr(
+                "APT selects unused dependencies. Review every removal before applying; configuration files are kept."
+            ),
         )
-        review = Gtk.Button(label="Review", valign=Gtk.Align.CENTER)
+        review = Gtk.Button(label=tr("Review"), valign=Gtk.Align.CENTER)
         review.connect("clicked", self._on_autoremove)
         dependency_row.add_suffix(review)
         dependencies.add(dependency_row)
+        for action, title in (
+            ("autopurge", "Remove unused dependencies and their configurations"),
+            ("purge-config", "Purge configurations of removed packages"),
+        ):
+            row = action_row(title=title, subtitle=tr("Review every package before applying."))
+            button = Gtk.Button(label=tr("Review"), valign=Gtk.Align.CENTER)
+            button.connect(
+                "clicked",
+                lambda _, selected=action: self.window.run_privileged(
+                    "Review cleanup", self.apt_manager.helper_command(selected)
+                ),
+            )
+            row.add_suffix(button)
+            dependencies.add(row)
         self._pref_page.add(dependencies)
 
         # Clean button
@@ -67,7 +84,7 @@ class CleanupPage(Gtk.Box):
         btn_box.set_margin_start(12)
         btn_box.set_margin_end(12)
         btn_box.set_margin_bottom(16)
-        self._clean_btn = Gtk.Button(label="Clean Selected Items", valign=Gtk.Align.CENTER)
+        self._clean_btn = Gtk.Button(label=tr("Clean Selected Items"), valign=Gtk.Align.CENTER)
         self._clean_btn.add_css_class("suggested-action")
         self._clean_btn.set_sensitive(False)
         self._clean_btn.connect("clicked", self._on_clean)
@@ -82,7 +99,7 @@ class CleanupPage(Gtk.Box):
         self._generation += 1
         self._retry.set_visible(False)
         self._clean_btn.set_sensitive(False)
-        self._total_row.set_title("Calculating…")
+        self._total_row.set_title(tr("Calculating…"))
         self._total_row.set_subtitle("")
         self._items_group.set_sensitive(False)
         threading.Thread(target=self._fetch, args=(self._generation,), daemon=True).start()
@@ -108,7 +125,7 @@ class CleanupPage(Gtk.Box):
             return False
         self._spinner.stop()
         self._spinner_box.set_visible(False)
-        self._total_row.set_title("Could not calculate cleanup space")
+        self._total_row.set_title(tr("Could not calculate cleanup space"))
         self._total_row.set_subtitle(message)
         self._retry.set_visible(True)
         return False
@@ -143,12 +160,12 @@ class CleanupPage(Gtk.Box):
 
         if not items:
             empty_row = action_row(
-                title="Nothing to clean",
-                subtitle="Your system cache is already clean",
+                title=tr("Nothing to clean"),
+                subtitle=tr("Your system cache is already clean"),
             )
             self._items_group.add(empty_row)
             self._item_rows.append(empty_row)
-            self._clean_btn.set_label("Clean Selected Items")
+            self._clean_btn.set_label(tr("Clean Selected Items"))
             self._clean_btn.set_sensitive(False)
             return False
 

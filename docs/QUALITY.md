@@ -17,7 +17,7 @@ implemented workflows from remaining acceptance work.
 
 - Backend tests cover dependency guards, holds, kept-back packages, progress,
   history, source validation, system identity, metadata and failure handling.
-- Each distro ran 42 GTK checks under Xvfb: 41 passed and one real-artwork check
+- Each distro ran 43 GTK checks under Xvfb: 42 passed and one real-artwork check
   skipped because GIMP's AppStream artwork was absent. Missing artwork is not
   counted as a verified catalogue integration.
 - Single-instance command forwarding was tested in isolated D-Bus sessions.
@@ -30,6 +30,11 @@ implemented workflows from remaining acceptance work.
 - Real isolated transactions cover install, normal/full upgrade, remove, purge,
   reinstall, autoremove, local archives, review cancellation, dependency guards,
   package-row event identity, and GUI pipe loss before/after approval.
+- The mirror follow-up passed all eight distro stages, then final offline focused
+  checks on rebuilt images: real archive detection, APT source parsing, 12 provider
+  tests and 3 GTK mirror tests. Live official-catalogue and sampled compatible
+  Release checks succeeded for all four providers; this does not certify every
+  listed mirror's availability.
 - Debian package build, installation into disposable containers and the installed
   command's help output passed on every target. The local `.deb` was rebuilt.
 - Ruff lint/format and diff whitespace checks passed during this work. The
@@ -49,9 +54,12 @@ matrix; test containers were removed, and their images remain cached.
 - **Debian identity:** `.pgp` archive keyrings are recognized alongside `.gpg`
   and `.asc`. Real Sid and trixie images now display the configured Debian suite;
   derivatives retain their own OS identity. Vendor-key exclusions remain tested.
-- **Derivative mirrors:** unsupported Debian mirror selection now has a clear
-  explanatory state instead of a generic read error. Existing sources and normal
-  package operations remain available.
+- **Derivative mirrors:** the initial explanatory unsupported state has been
+  superseded by separate Ubuntu, Mint and Kali providers. Archive/suite selection,
+  Release compatibility checks and scoped saves preserve other repositories.
+  Unknown distributions still receive an explanatory unsupported state. System
+  badges are restricted to the recognized archive rather than every feed using
+  the same suite name, so PPAs are not labelled as Ubuntu archive mirrors.
 - **Older libadwaita:** the adaptive window declares a minimum size, resolving
   the warning exposed by Ubuntu's libadwaita 1.5.
 - **Reliable fixtures:** Mint uses its actual base identity package and distro
@@ -80,7 +88,8 @@ association. See [CLI and local packages](CLI-AND-LOCAL-PACKAGES.md) for limits.
 Icons come from local AppStream/theme metadata with a generic fallback; remote
 icon URLs are not fetched. Optional screenshots use bounded HTTPS transfers,
 asynchronous decoding and retry. Mirror saving follows Nala's save-only pattern:
-Orbit owns a separate source file and preserves existing sources.
+Orbit owns a separate source file and preserves existing sources. Each archive
+and suite has an independent stanza; see [provider support](MIRRORS.md).
 
 ## Measured performance
 
@@ -112,10 +121,15 @@ for every system, catalogue or artwork workload.
   helper/dpkg termination, restart reconciliation and rollback remain unproven.
 - **Network/platform breadth:** proxy/captive-portal behavior, all repository
   outages, OS DNS timing and older distribution stacks are not fully covered.
-  Mirror selection remains Debian-only. Required versions are Python 3.11+,
+  Mirror discovery covers Debian, Ubuntu, Devuan, Mint and Kali; ARM/ports and arbitrary
+  derivatives still need acceptance coverage. Required versions are Python 3.11+,
   GTK 4.12+ and libadwaita 1.5+.
 - **Feature gaps:** hold editing, arbitrary version selection, history replay,
   batch local archives, conffile/debconf choices, richer discovery, other package
   backends and offline-update orchestration remain in the acceptance backlog.
 
 No score of 10 or complete desktop certification is claimed.
+
+Devuan catalogue follow-up: both merged and Devuan-only archive layouts passed
+focused parser/discovery/isolation tests and sampled live Release validation.
+The existing five-target distro matrix does not include Devuan.

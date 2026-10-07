@@ -9,7 +9,8 @@ from threading import Event, Thread
 from time import monotonic, perf_counter
 from urllib.request import Request, urlopen
 
-from orbit_gtk.backend.mirrors import MirrorCandidate, fetch_masterlist, flag
+from orbit_gtk.backend.mirror_catalogues import fetch_catalogue, validate_release
+from orbit_gtk.backend.mirrors import MirrorCandidate, SourceSettings, flag
 from orbit_gtk.backend.models import MirrorInfo
 from orbit_gtk.backend.network import read_response
 
@@ -35,15 +36,21 @@ class MirrorBenchmarkWorker:
         on_progress: Callable[[int, int, str], object] | None = None,
         on_done: Callable[[list[MirrorInfo], str | None], object] | None = None,
         dispatch: Callable[..., object] | None = None,
-        fetcher: Callable[[], list[MirrorCandidate]] = fetch_masterlist,
+        fetcher: Callable[[], list[MirrorCandidate]] | None = None,
+        settings: SourceSettings | None = None,
+        https_only: bool = False,
+        countries: tuple[str, ...] = (),
     ) -> None:
+        self.https_only = https_only
+        self.countries = {c.upper() for c in countries}
         self.suite = suite
         self._on_masterlist = on_masterlist
         self._on_result = on_result
         self._on_progress = on_progress
         self._on_done = on_done
         self._dispatch = dispatch or (lambda callback, *args: callback(*args))
-        self._fetcher = fetcher
+        self.settings = settings or SourceSettings(suite, ("main",))
+        self._fetcher = fetcher or (lambda: fetch_catalogue(self.settings))
         self._cancelled = Event()
         self._thread: Thread | None = None
 
@@ -65,6 +72,8 @@ class MirrorBenchmarkWorker:
     def _run(self) -> None:
         try:
             mirrors = self._fetcher()
+            if self.countries:
+                mirrors = [m for m in mirrors if m.country_code.upper() in self.countries]
         except Exception as error:  # The page needs an actionable failure, not a traceback.
             self._done([], str(error))
             return
@@ -115,6 +124,8 @@ class MirrorBenchmarkWorker:
     def _benchmark_one(self, mirror: MirrorCandidate) -> MirrorInfo:
         candidates = (mirror.url.replace("http://", "https://", 1), mirror.url)
         for base_url in dict.fromkeys(candidates):
+            if self.https_only and not base_url.startswith("https://"):
+                continue
             if self._cancelled.is_set():
                 break
             release_url = f"{base_url}/dists/{self.suite}/Release"
@@ -131,8 +142,7 @@ class MirrorBenchmarkWorker:
                         deadline=deadline,
                         cancelled=self._cancelled.is_set,
                     )
-                    if b"SHA256:" not in release or b"Suite:" not in release:
-                        continue
+                    validate_release(release, self.settings)
             except (OSError, HTTPException, ValueError):
                 continue
             latency = (perf_counter() - started) * 1_000

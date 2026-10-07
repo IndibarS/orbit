@@ -6,6 +6,7 @@ from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import PackageHealth
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.widgets import action_row
 
 
@@ -21,20 +22,20 @@ class HomePage(Gtk.ScrolledWindow):
         self._page = Adw.PreferencesPage()
         self.set_child(self._page)
         self._recovery_group = Adw.PreferencesGroup(
-            title="Package state needs attention", visible=False
+            title=tr("Package state needs attention"), visible=False
         )
-        self._recovery = action_row(title="Checking package state…")
+        self._recovery = action_row(title=tr("Checking package state…"))
         icon = Gtk.Image(icon_name="dialog-warning-symbolic")
         icon.add_css_class("warning")
         self._recovery.add_prefix(icon)
-        self._repair_button = Gtk.Button(label="Review repair", valign=Gtk.Align.CENTER)
+        self._repair_button = Gtk.Button(label=tr("Review repair"), valign=Gtk.Align.CENTER)
         self._repair_button.connect("clicked", self._on_repair)
         self._recovery.add_suffix(self._repair_button)
         self._recovery_group.add(self._recovery)
         self._page.add(self._recovery_group)
 
         # ── System summary group ──────────────────────────────────── #
-        self._sys_group = Adw.PreferencesGroup(title="System")
+        self._sys_group = Adw.PreferencesGroup(title=tr("System"))
         self._page.add(self._sys_group)
 
         self._row_distro = self._make_row("Distribution", "—", "computer-symbolic")
@@ -44,8 +45,8 @@ class HomePage(Gtk.ScrolledWindow):
             self._sys_group.add(r)
 
         # ── Package stats group ───────────────────────────────────── #
-        self._pkg_group = Adw.PreferencesGroup(title="Packages")
-        self._retry = Gtk.Button(label="Retry", valign=Gtk.Align.CENTER, visible=False)
+        self._pkg_group = Adw.PreferencesGroup(title=tr("Packages"))
+        self._retry = Gtk.Button(label=tr("Retry"), valign=Gtk.Align.CENTER, visible=False)
         self._retry.connect("clicked", lambda _: self.window.refresh_all())
         self._pkg_group.set_header_suffix(self._retry)
         self._page.add(self._pkg_group)
@@ -59,12 +60,12 @@ class HomePage(Gtk.ScrolledWindow):
             self._pkg_group.add(r)
 
         # ── Quick actions ─────────────────────────────────────────── #
-        act_group = Adw.PreferencesGroup(title="Quick Actions")
+        act_group = Adw.PreferencesGroup(title=tr("Quick Actions"))
         self._page.add(act_group)
 
         local_row = action_row(
-            title="Install a downloaded package",
-            subtitle="Choose a .deb file and review installation",
+            title=tr("Install a downloaded package"),
+            subtitle=tr("Choose a .deb file and review installation"),
         )
         local_row.set_activatable(True)
         local_row.add_prefix(Gtk.Image(icon_name="package-x-generic-symbolic"))
@@ -73,8 +74,8 @@ class HomePage(Gtk.ScrolledWindow):
         act_group.add(local_row)
 
         upgrade_row = action_row(
-            title="Upgrade All Packages",
-            subtitle="Apply all pending system upgrades",
+            title=tr("Upgrade All Packages"),
+            subtitle=tr("Apply all pending system upgrades"),
         )
         upgrade_row.set_activatable(True)
         upgrade_row.add_prefix(Gtk.Image.new_from_icon_name("software-update-available-symbolic"))
@@ -83,8 +84,8 @@ class HomePage(Gtk.ScrolledWindow):
         act_group.add(upgrade_row)
 
         cleanup_row = action_row(
-            title="Clean Package Cache",
-            subtitle="Remove downloaded .deb files from cache",
+            title=tr("Clean Package Cache"),
+            subtitle=tr("Remove downloaded .deb files from cache"),
         )
         cleanup_row.set_activatable(True)
         cleanup_row.add_prefix(Gtk.Image.new_from_icon_name("user-trash-symbolic"))
@@ -92,14 +93,34 @@ class HomePage(Gtk.ScrolledWindow):
         cleanup_row.connect("activated", self._on_clean_cache)
         act_group.add(cleanup_row)
 
+        selected = action_row(
+            title=tr("Selected package changes"),
+            subtitle=tr("Review or discard the packages collected while browsing"),
+        )
+        selected.set_activatable(True)
+        selected.connect("activated", self.window.show_selection)
+        act_group.add(selected)
+        advanced = action_row(
+            title=tr("Plan package changes"),
+            subtitle=tr("Batch packages, choose versions, download only, or repair dependencies"),
+        )
+        advanced.set_activatable(True)
+        advanced.connect("activated", self._on_advanced)
+        act_group.add(advanced)
+
         repair = action_row(
-            title="Repair interrupted installation",
-            subtitle="Finish configuring packages after an interrupted transaction",
+            title=tr("Repair interrupted installation"),
+            subtitle=tr("Finish configuring packages after an interrupted transaction"),
         )
         repair.set_activatable(True)
         repair.add_prefix(Gtk.Image(icon_name="applications-system-symbolic"))
         repair.connect("activated", self._on_repair)
         act_group.add(repair)
+
+    def _on_advanced(self, _row):
+        from orbit_gtk.ui.transaction_options import TransactionOptions
+
+        TransactionOptions(self.window).present(self.window)
 
     def _on_repair(self, _row):
         self.window.confirm_and_run(
@@ -121,7 +142,7 @@ class HomePage(Gtk.ScrolledWindow):
         self._loaded = True
         self._retry.set_visible(False)
         for row in (self._row_installed, self._row_upgradable, self._row_cache):
-            row.set_subtitle("Loading…")
+            row.set_subtitle(tr("Loading…"))
             row.remove_css_class("error")
         self._generation += 1
         threading.Thread(
@@ -191,12 +212,12 @@ class HomePage(Gtk.ScrolledWindow):
             if errors[key]:
                 row.add_css_class("error")
         self._row_upgradable.set_tooltip_text(
-            "Refresh package lists to check repositories for new updates."
+            tr("Refresh package lists to check repositories for new updates.")
         )
         self._retry.set_visible(any(errors.values()))
         self._recovery_group.set_visible(health.needs_attention or bool(errors.get("health")))
         if errors.get("health"):
-            self._recovery.set_title("Could not check package state")
+            self._recovery.set_title(tr("Could not check package state"))
             self._recovery.set_subtitle(errors["health"])
             self._repair_button.set_visible(False)
         elif health.needs_attention:

@@ -8,6 +8,7 @@ from collections.abc import Callable
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.operation_dialog import OperationDialog
 from orbit_gtk.ui.pages.browse import BrowsePage
 from orbit_gtk.ui.pages.cleanup import CleanupPage
@@ -25,9 +26,13 @@ class OrbitWindow(Adw.ApplicationWindow):
         super().__init__(**kwargs)
         self.apt_manager = apt_manager
         self._operation_active = False
+        from orbit_gtk.backend.selection import load_selection
+
+        self._package_selection = load_selection()
+        self._downloaded_archives = []
         self._refresh_generation = 0
         self.connect("close-request", self._on_close_request)
-        self.set_title("Orbit Package Manager")
+        self.set_title(tr("Orbit Package Manager"))
         self.set_default_size(1100, 720)
         self.set_size_request(360, 360)
         search_action = Gio.SimpleAction.new("search", None)
@@ -45,7 +50,7 @@ class OrbitWindow(Adw.ApplicationWindow):
         split.set_max_sidebar_width(260)
         self.set_content(split)
 
-        sidebar = Adw.NavigationPage(title="Orbit", tag="sidebar")
+        sidebar = Adw.NavigationPage(title=tr("Orbit"), tag="sidebar")
         sidebar_toolbar = Adw.ToolbarView()
         sidebar.set_child(sidebar_toolbar)
         sidebar_header = Adw.HeaderBar()
@@ -73,12 +78,12 @@ class OrbitWindow(Adw.ApplicationWindow):
         sidebar_toolbar.add_bottom_bar(sidebar_footer)
         split.set_sidebar(sidebar)
 
-        self._content_page = Adw.NavigationPage(title="Orbit Package Manager", tag="content")
+        self._content_page = Adw.NavigationPage(title=tr("Orbit Package Manager"), tag="content")
         content_toolbar = Adw.ToolbarView()
         self._content_page.set_child(content_toolbar)
         self._header = Adw.HeaderBar()
         refresh_button = Gtk.Button(
-            icon_name="view-refresh-symbolic", tooltip_text="Refresh package lists"
+            icon_name="view-refresh-symbolic", tooltip_text=tr("Refresh package lists")
         )
         refresh_button.connect("clicked", self._on_refresh_lists)
         self._header.pack_start(refresh_button)
@@ -177,22 +182,46 @@ class OrbitWindow(Adw.ApplicationWindow):
         if self._operation_active:
             self.show_toast("Finish the current operation, then run the command again")
             return
+        from orbit_gtk.backend.transaction_options import option_arguments
+
+        extra = option_arguments(getattr(request, "options", {})) if command != "update" else []
         if command in {"update", "upgrade", "full-upgrade"}:
             self.navigate("updates")
             self._pages["updates"].start_operation(
-                command.replace("-", " ").capitalize(), self.apt_manager.helper_command(command)
+                command.replace("-", " ").capitalize(),
+                self.apt_manager.helper_command(command, *extra),
             )
-        elif command in {"install", "remove", "purge", "reinstall", "autoremove"}:
+        elif command in {
+            "install",
+            "remove",
+            "purge",
+            "reinstall",
+            "autoremove",
+            "autopurge",
+            "purge-config",
+            "fix-broken",
+        }:
             self.navigate(
                 "cleanup"
-                if command == "autoremove"
+                if command in {"autoremove", "autopurge", "purge-config", "fix-broken"}
                 else "browse"
                 if command == "install"
                 else "installed"
             )
             self.run_privileged(
                 command.capitalize(),
-                self.apt_manager.helper_command(command, *getattr(request, "packages", [])),
+                self.apt_manager.helper_command(command, *getattr(request, "packages", []), *extra),
+            )
+        elif command == "install-url":
+            from orbit_gtk.ui.archive_download import ArchiveDownload
+
+            ArchiveDownload(self, request.url, request.sha256).present(self)
+        elif command == "install-batch":
+            self.run_privileged(
+                "Review local packages",
+                self.apt_manager.helper_command(
+                    "install-batch", "--paths", *request.paths, "--packages", *request.packages
+                ),
             )
         elif command == "install-local":
             self.install_local(request.path)
@@ -206,6 +235,13 @@ class OrbitWindow(Adw.ApplicationWindow):
             )
             self.navigate(page)
             query = " ".join(request.query) if command == "search" else request.query
+            if command == "search":
+                browse = self._pages["browse"]
+                browse._mode.set_selected(("text", "glob", "regex").index(request.mode))
+                browse._filter.set_selected(
+                    ("all", "installed", "upgradable", "virtual").index(request.filter)
+                )
+                browse._names_only.set_active(request.names)
             if page != "updates":
                 self._pages[page]._entry.set_text(query)
         elif command == "show":
@@ -223,9 +259,42 @@ class OrbitWindow(Adw.ApplicationWindow):
             threading.Thread(target=fetch, daemon=True).start()
         elif command == "fetch":
             self.navigate("mirrors")
-            self._pages["mirrors"]._on_benchmark(None)
+            mirrors = self._pages["mirrors"]
+            mirrors._https_only.set_active(getattr(request, "https_only", False))
+            mirrors._countries.set_text(" ".join(getattr(request, "country", [])))
+            mirrors._sources.set_active(getattr(request, "sources", False))
+            mirrors._count.set_value(getattr(request, "fetches", 3))
+            mirrors._components_override.set_text(
+                " ".join(getattr(request, "components", None) or [])
+            )
+            for index, provider in enumerate(
+                ("debian", "ubuntu", "devuan", "linuxmint", "kali"), 1
+            ):
+                if getattr(request, provider, None):
+                    mirrors._manual_provider.set_selected(index)
+                    mirrors._suite_override.set_text(getattr(request, provider))
+            mirrors._on_benchmark(None)
         elif command == "history":
             self.navigate("history")
+            if getattr(request, "history_action", None) in {"undo", "redo"}:
+
+                def load_history():
+                    transactions = self.apt_manager.get_history(None)
+                    transaction = (
+                        next((t for t in transactions if t.id == request.history_id), None)
+                        if request.history_id != "last"
+                        else next((t for t in transactions if t.status == "Completed"), None)
+                    )
+                    if transaction:
+                        GLib.idle_add(
+                            self._pages["history"]._replay,
+                            transaction,
+                            request.history_action == "undo",
+                        )
+                    else:
+                        GLib.idle_add(self.show_toast, "History entry not found")
+
+                threading.Thread(target=load_history, daemon=True).start()
         elif command == "clean":
             self.navigate("cleanup")
             self.confirm_and_run(
@@ -240,12 +309,39 @@ class OrbitWindow(Adw.ApplicationWindow):
             "Install local package", self.apt_manager.helper_command("install-local", path)
         )
 
+    def _choose_local_packages(self, _button):
+        chooser = Gtk.FileDialog(
+            title=tr("Install local Debian packages"), accept_label=tr("Review packages")
+        )
+        files = Gtk.FileFilter(name="Debian packages (.deb)")
+        files.add_pattern("*.deb")
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(files)
+        chooser.set_filters(filters)
+
+        def chosen(dialog, result):
+            try:
+                selected = dialog.open_multiple_finish(result)
+                paths = [selected.get_item(i).get_path() for i in range(selected.get_n_items())]
+                if not paths or any(path is None for path in paths):
+                    self.show_toast("Choose downloaded local archives")
+                    return
+                self.run_privileged(
+                    "Review local packages",
+                    self.apt_manager.helper_command("install-batch", "--paths", *paths),
+                )
+            except GLib.Error as error:
+                if not error.matches(Gtk.dialog_error_quark(), Gtk.DialogError.DISMISSED):
+                    self.show_toast(error.message)
+
+        chooser.open_multiple(self, None, chosen)
+
     def _choose_local_package(self, _button):
         if self._operation_active:
             self.show_toast("Finish the current package operation first")
             return
         chooser = Gtk.FileDialog(
-            title="Install local Debian package", accept_label="Review package"
+            title=tr("Install local Debian package"), accept_label=tr("Review package")
         )
         files = Gtk.FileFilter(name="Debian packages (.deb)")
         files.add_pattern("*.deb")
@@ -382,21 +478,53 @@ class OrbitWindow(Adw.ApplicationWindow):
         return False
 
     def show_package_details(self, package) -> None:
+        def load():
+            try:
+                detail = self.apt_manager.get_package(package.full_name or package.name)
+                GLib.idle_add(self._present_package_details, detail or package)
+            except Exception as error:
+                GLib.idle_add(self.show_toast, f"Could not load package details: {error}")
+
+        threading.Thread(target=load, daemon=True).start()
+
+    def _present_package_details(self, package):
+        from orbit_gtk.backend.transaction_options import option_arguments
         from orbit_gtk.ui.package_dialog import PackageDialog
 
-        def act(action):
-            title = {
-                "install": "Install or upgrade",
-                "remove": "Remove",
-                "purge": "Purge",
-                "reinstall": "Reinstall",
-            }[action]
+        def act(action, options=None):
+            if action.startswith("queue:"):
+                self._package_selection[package.full_name or package.name] = action.split(":", 1)[1]
+                self.save_selection()
+                self.show_toast("Added to selected package changes")
+                return
             self.run_privileged(
-                f"{title} {package.name}",
-                self.apt_manager.helper_command(action, package.full_name or package.name),
+                f"Review {action} · {package.name}",
+                self.apt_manager.helper_command(
+                    action, package.full_name or package.name, *option_arguments(options)
+                ),
             )
 
-        PackageDialog(package, on_action=act).present(self)
+        from orbit_gtk.backend.models import PackageInfo
+
+        PackageDialog(
+            package,
+            on_action=act,
+            on_related=lambda name: self.show_package_details(PackageInfo(name=name)),
+        ).present(self)
+        return False
+
+    def save_selection(self):
+        from orbit_gtk.backend.selection import save_selection
+
+        try:
+            save_selection(self._package_selection)
+        except OSError as error:
+            self.show_toast(f"Could not save the pending selection: {error}")
+
+    def show_selection(self, _button=None):
+        from orbit_gtk.ui.selection import PackageSelection
+
+        PackageSelection(self).present(self)
 
     def show_toast(self, message: str) -> None:
         self._toasts.add_toast(Adw.Toast(title=message))

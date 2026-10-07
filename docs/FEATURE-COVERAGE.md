@@ -1,8 +1,12 @@
 # Feature coverage and acceptance backlog
 
-Reviewed 7 October 2026 after the five-target Docker matrix. This is a concrete backlog, not a claim that Orbit
+Reviewed 7 October 2026 after the five-target Docker matrix and distro-specific
+mirror follow-up. This is a concrete backlog, not a claim that Orbit
 already surpasses every package manager. Feature presence alone is insufficient:
 each new workflow needs dependency review, clear progress and recovery tests.
+
+For the command-by-command Nala gap audit and priorities, see
+[NALA-COMPARISON.md](NALA-COMPARISON.md).
 
 ## Reference products
 
@@ -25,7 +29,7 @@ each new workflow needs dependency review, clear progress and recovery tests.
 | Per-package progress | Inline download, unpacking and configuration status | Recovery after abrupt GUI termination |
 | Unused dependency removal | Reviewed and isolated dpkg tested | Broader dependency graph fixtures |
 | Weak/offline connections | APT retry/timeout defaults, explicit failures, cached browsing, capped metadata transfers; fault tests | Wider proxy, DNS, captive-portal and intermittent-connectivity acceptance |
-| Mirror discovery and source ownership | Debian-only catalogue; Orbit-owned file; existing sources preserved; clear derivative limitation | More source layouts and live mirror acceptance |
+| Mirror discovery and source ownership | Debian/Ubuntu/Devuan/Mint/Kali catalogues; per-archive/suite selection; compatible Release checks; scoped Orbit-owned stanzas | More source layouts, ARM/ports catalogue coverage and live mirror acceptance |
 | History | APT/Nala parsing, action chips and lazy grouped rows | Replay/undo with availability and reversal checks |
 | Application icons/screenshots | AppStream metadata, optional fallback | More distro catalogues and image formats |
 | Package holds and version selection | Holds displayed/respected; editing absent | Reviewed state changes and version/hold persistence tests |
@@ -56,3 +60,10 @@ always accompany text labels, never replace them.
 See [DISTRO-TESTING.md](DISTRO-TESTING.md) for exact runtime versions, image
 qualifications and skipped artwork coverage. Passing container checks does not
 complete the desktop acceptance backlog or establish feature parity.
+
+Mirror discovery recognizes the five supported archive providers from enabled
+APT sources and cached Origin metadata, including on other derivatives. It does
+not infer repository compatibility from `ID_LIKE=debian`. Mint's Ubuntu and LMDE base handling, security-source
+exclusions, scoped removal and catalogue limits are detailed in
+[MIRRORS.md](MIRRORS.md). LMDE source fixtures and successful x86 container runs
+do not establish LMDE/ARM desktop acceptance.

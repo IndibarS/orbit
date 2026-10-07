@@ -6,6 +6,7 @@ from functools import lru_cache
 from gi.repository import Adw, Gdk, GLib, Gtk
 
 from orbit_gtk.backend.screenshots import fetch_screenshot
+from orbit_gtk.i18n import tr
 
 _WORKERS = ThreadPoolExecutor(max_workers=2, thread_name_prefix="orbit-screenshots")
 
@@ -33,7 +34,7 @@ def _deliver(reference, generation, future):
 
 class ScreenshotGallery(Adw.PreferencesGroup):
     def __init__(self, screenshots):
-        super().__init__(title="Screenshots")
+        super().__init__(title=tr("Screenshots"))
         self._screenshots = screenshots
         self._index = 0
         self._generation = 0
@@ -45,14 +46,14 @@ class ScreenshotGallery(Adw.PreferencesGroup):
         self._stack.add_named(self._spinner, "loading")
         self._stack.set_visible_child_name("loading")
         error = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, valign=Gtk.Align.CENTER)
-        error.append(Gtk.Label(label="Screenshot unavailable", css_classes=["dim-label"]))
+        error.append(Gtk.Label(label=tr("Screenshot unavailable"), css_classes=["dim-label"]))
         error.append(
             Gtk.Label(
-                label="Check your connection and try again. Package details remain available.",
+                label=tr("Check your connection and try again. Package details remain available."),
                 wrap=True,
             )
         )
-        retry = Gtk.Button(label="Retry", halign=Gtk.Align.CENTER)
+        retry = Gtk.Button(label=tr("Retry"), halign=Gtk.Align.CENTER)
         retry.connect("clicked", lambda _: self._show())
         error.append(retry)
         self._stack.add_named(error, "error")
@@ -66,11 +67,11 @@ class ScreenshotGallery(Adw.PreferencesGroup):
         self.add(self._caption)
         controls = Gtk.Box(spacing=8, valign=Gtk.Align.CENTER)
         self._previous = Gtk.Button(
-            icon_name="go-previous-symbolic", tooltip_text="Previous screenshot"
+            icon_name="go-previous-symbolic", tooltip_text=tr("Previous screenshot")
         )
         self._previous.connect("clicked", lambda _: self._move(-1))
         self._counter = Gtk.Label()
-        self._next = Gtk.Button(icon_name="go-next-symbolic", tooltip_text="Next screenshot")
+        self._next = Gtk.Button(icon_name="go-next-symbolic", tooltip_text=tr("Next screenshot"))
         self._next.connect("clicked", lambda _: self._move(1))
         for widget in (self._previous, self._counter, self._next):
             controls.append(widget)

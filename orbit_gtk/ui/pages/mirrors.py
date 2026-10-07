@@ -1,8 +1,9 @@
-"""Manage Orbit's own optional Debian mirror source safely."""
+"""Manage distro-specific mirrors in Orbit's optional source file."""
 
 from __future__ import annotations
 
 import threading
+from dataclasses import replace
 from urllib.parse import urlparse
 
 from gi.repository import Adw, Gio, GLib, Gtk
@@ -11,11 +12,12 @@ from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.mirror_benchmark import MirrorBenchmarkWorker, get_flag_for_mirror
 from orbit_gtk.backend.mirrors import (
     UnsupportedMirrorDistribution,
-    existing_mirror_urls,
     flag,
+    source_profiles,
     source_settings,
 )
 from orbit_gtk.backend.models import MirrorInfo
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.operation_view import OperationView
 from orbit_gtk.ui.widgets import action_row
 
@@ -27,6 +29,9 @@ class MirrorsPage(Gtk.Box):
         self.window = window
         self._operation = None
         self._loaded = False
+        self._profiles = []
+        self._settings = None
+        self._updating_selector = False
         self._active_urls: list[str] = []
         self._configured_urls: set[str] = set()
         self._load_generation = 0
@@ -53,12 +58,23 @@ class MirrorsPage(Gtk.Box):
         self.append(self._progress)
 
         self._unsupported = Adw.StatusPage(
-            title="Debian mirror selection unavailable",
+            title=tr("Mirror selection unavailable"),
             icon_name="network-server-symbolic",
-            description="This distribution uses its own repositories. Manage mirrors with its repository settings tool; Orbit's package operations still use your configured APT sources.",
+            description=tr(
+                "No recognized Debian, Ubuntu, Devuan, Linux Mint or Kali archives were found in your enabled APT sources. Refresh package lists if metadata is missing, then try again. Unrecognized repositories remain unchanged and can still serve package operations."
+            ),
             visible=False,
             vexpand=True,
         )
+        choose = Gtk.Button(label=tr("Choose a catalogue manually"), halign=Gtk.Align.CENTER)
+
+        def manual(_):
+            self._unsupported.set_visible(False)
+            self._content_scroll.set_visible(True)
+            self._manual_provider.set_selected(1)
+
+        choose.connect("clicked", manual)
+        self._unsupported.set_child(choose)
         self.append(self._unsupported)
         scroll = Gtk.ScrolledWindow(vexpand=True)
         self._content_scroll = scroll
@@ -67,24 +83,66 @@ class MirrorsPage(Gtk.Box):
         page = Adw.PreferencesPage()
         scroll.set_child(page)
         self._active_group = Adw.PreferencesGroup(
-            title="Configured mirrors",
-            description="Save selected mirrors to Orbit’s source file. Existing sources are preserved; refresh package lists separately.",
+            title=tr("Configured mirrors"),
+            description=tr(
+                "Save selected mirrors to Orbit’s source file. Existing sources are preserved; refresh package lists separately."
+            ),
         )
+        repository_group = Adw.PreferencesGroup(
+            title=tr("Repository"),
+            description=tr(
+                "Benchmark and select mirrors for one archive and suite at a time. Security sources remain unchanged."
+            ),
+        )
+        self._repository = Adw.ComboRow(title=tr("Archive and suite"))
+        self._repository.connect("notify::selected", self._select_repository)
+        repository_group.add(self._repository)
+        self._https_only = Adw.SwitchRow(
+            title=tr("HTTPS only"), subtitle=tr("Do not fall back to unencrypted HTTP")
+        )
+        self._countries = Adw.EntryRow(title=tr("Country codes · optional, e.g. DE FR"))
+        repository_group.add(self._https_only)
+        repository_group.add(self._countries)
+        advanced = Adw.ExpanderRow(
+            title=tr("Advanced repository settings"),
+            subtitle=tr(
+                "Optional overrides affect Orbit sources only. A different suite changes available package versions."
+            ),
+        )
+        self._manual_provider = Adw.ComboRow(
+            title=tr("Catalogue override"),
+            model=Gtk.StringList.new(
+                ["Use selected archive", "Debian", "Ubuntu", "Devuan", "Linux Mint", "Kali"]
+            ),
+        )
+        advanced.add_row(self._manual_provider)
+        self._suite_override = Adw.EntryRow(title=tr("Suite override · leave empty to preserve"))
+        self._components_override = Adw.EntryRow(
+            title=tr("Components · space-separated; empty preserves")
+        )
+        self._sources = Adw.SwitchRow(title=tr("Include source-package repositories"))
+        advanced.add_row(self._suite_override)
+        advanced.add_row(self._components_override)
+        advanced.add_row(self._sources)
+        repository_group.add(advanced)
+        page.add(repository_group)
         page.add(self._active_group)
         actions = Gtk.Box(spacing=8)
-        self._benchmark = Gtk.Button(label="Benchmark mirrors", valign=Gtk.Align.CENTER)
+        self._benchmark = Gtk.Button(label=tr("Benchmark mirrors"), valign=Gtk.Align.CENTER)
         self._benchmark.add_css_class("suggested-action")
         self._benchmark.connect("clicked", self._on_benchmark)
         actions.append(self._benchmark)
-        self._clear = Gtk.Button(label="Clear Orbit mirrors", valign=Gtk.Align.CENTER)
+        self._clear = Gtk.Button(label=tr("Clear selection"), valign=Gtk.Align.CENTER)
         self._clear.add_css_class("flat")
         self._clear.connect("clicked", self._on_clear)
         actions.append(self._clear)
         self._active_group.set_header_suffix(actions)
 
         self._results_group = Adw.PreferencesGroup(
-            title="Benchmark results",
-            description="Results are sorted by the measured time to fetch the active suite's Release file.",
+            title=tr("Benchmark results"),
+            description=tr(
+                "Results are sorted by the measured time to fetch the active suite's Release file."
+            ),
         )
         self._results_group.set_visible(False)
         page.add(self._results_group)
@@ -93,7 +151,7 @@ class MirrorsPage(Gtk.Box):
         self._results.set_sort_func(self._sort_rows)
         self._results_group.add(self._results)
         result_actions = Gtk.Box(spacing=6)
-        self._best = Gtk.Button(label="Use best 3", valign=Gtk.Align.CENTER)
+        self._best = Gtk.Button(label=tr("Use best 3"), valign=Gtk.Align.CENTER)
         self._best.add_css_class("suggested-action")
         self._best.set_sensitive(False)
         self._best.connect("clicked", lambda _button: self._use_best(3))
@@ -114,6 +172,16 @@ class MirrorsPage(Gtk.Box):
             )
             action_group.add_action(action)
         self.insert_action_group("mirrors", action_group)
+        self._count = Gtk.SpinButton.new_with_range(1, 16, 1)
+        self._count.set_value(3)
+        self._count.set_tooltip_text(tr("Number of fastest mirrors"))
+        result_actions.append(self._count)
+        custom = Gtk.Button(label=tr("Use fastest"))
+        custom.connect("clicked", lambda _: self._use_best(self._count.get_value_as_int()))
+        result_actions.append(custom)
+        selected = Gtk.Button(label=tr("Apply selection"))
+        selected.connect("clicked", self._apply_selection)
+        result_actions.append(selected)
         self._results_group.set_header_suffix(result_actions)
 
     def load_data(self) -> None:
@@ -135,15 +203,64 @@ class MirrorsPage(Gtk.Box):
 
     def _load_active(self, generation: int) -> None:
         try:
-            mirrors = self.apt_manager.get_orbit_mirrors()
-            existing = existing_mirror_urls(source_settings().suite)
+            profiles = source_profiles()
+            selected = next(
+                (
+                    i
+                    for i, p in enumerate(profiles)
+                    if self._settings and p.repository == self._settings.repository
+                ),
+                0,
+            )
+            settings = profiles[selected]
+            mirrors = self.apt_manager.get_orbit_mirrors(settings)
+            existing = set(settings.uris)
         except UnsupportedMirrorDistribution:
             GLib.idle_add(self._show_unsupported)
             return
         except (OSError, ValueError) as error:
             GLib.idle_add(self._load_failed, generation, str(error))
             return
-        GLib.idle_add(self._show_active, mirrors, existing, generation)
+        GLib.idle_add(self._show_profiles, profiles, selected, mirrors, existing, generation)
+
+    def _show_profiles(self, profiles, selected, mirrors, existing, generation):
+        if generation != self._load_generation:
+            return False
+        self._profiles = profiles
+        self._settings = profiles[selected]
+        self._updating_selector = True
+        self._repository.set_model(Gtk.StringList.new([p.label for p in profiles]))
+        self._repository.set_selected(selected)
+        self._updating_selector = False
+        self._unsupported.set_visible(False)
+        self._content_scroll.set_visible(True)
+        self._active_group.set_title(f"Configured mirrors · {self._settings.label}")
+        self._benchmark.set_sensitive(self._worker is None and self._operation is None)
+        self._show_active(mirrors, existing, generation)
+        return False
+
+    def _select_repository(self, row, _property):
+        if self._updating_selector or row.get_selected() >= len(self._profiles):
+            return
+        self._settings = self._profiles[row.get_selected()]
+        self._run_id += 1
+        if self._worker:
+            self._worker.stop()
+            self._finish_benchmark("Benchmark stopped")
+        while child := self._results.get_first_child():
+            self._results.remove(child)
+        self._results_group.set_visible(False)
+        self._banner.set_revealed(False)
+        self._clear.set_sensitive(False)
+        self._benchmark.set_sensitive(False)
+        self._best.set_sensitive(False)
+        self._choose_menu.set_sensitive(False)
+        self._active_urls = []
+        self._configured_urls = set()
+        for active_row in self._active_rows:
+            self._active_group.remove(active_row)
+        self._active_rows.clear()
+        self.invalidate()
 
     def _show_unsupported(self):
         self._unsupported.set_visible(True)
@@ -172,7 +289,7 @@ class MirrorsPage(Gtk.Box):
         self._clear.set_sensitive(bool(mirrors))
         urls = list(dict.fromkeys([*mirrors, *sorted(existing)]))
         if not urls:
-            row = action_row(title="No mirrors configured for the active suite")
+            row = action_row(title=tr("No mirrors configured for the active suite"))
             self._active_group.add(row)
             self._active_rows.append(row)
         for url in urls:
@@ -184,11 +301,13 @@ class MirrorsPage(Gtk.Box):
             badge = Gtk.Label(label="In use · Orbit" if url in mirrors else "In use · System")
             badge.add_css_class("success")
             badge.set_tooltip_text(
-                "Enabled in APT sources for the active suite. Package lists are refreshed separately."
+                tr(
+                    "Enabled in APT sources for the active suite. Package lists are refreshed separately."
+                )
             )
             row.add_suffix(badge)
             if url in mirrors:
-                remove = Gtk.Button(label="Remove", valign=Gtk.Align.CENTER)
+                remove = Gtk.Button(label=tr("Remove"), valign=Gtk.Align.CENTER)
                 remove.add_css_class("destructive-action")
                 remove.connect("clicked", self._on_remove_one, url)
                 row.add_suffix(remove)
@@ -223,8 +342,17 @@ class MirrorsPage(Gtk.Box):
             getattr(first, "_latency", float("inf")) > getattr(second, "_latency", float("inf"))
         ) - (getattr(first, "_latency", float("inf")) < getattr(second, "_latency", float("inf")))
 
+    def _selected_settings(self):
+        if self._manual_provider.get_selected():
+            provider = ("debian", "ubuntu", "devuan", "linuxmint", "kali")[
+                self._manual_provider.get_selected() - 1
+            ]
+            suite = self._suite_override.get_text().strip()
+            return source_settings(f"manual:{provider}:{suite}:merged:explicit")
+        return self._settings or source_settings()
+
     def _on_benchmark(self, _button: Gtk.Button) -> None:
-        if self._worker:
+        if self._worker or self._operation:
             return
         while child := self._results.get_first_child():
             self._results.remove(child)
@@ -237,11 +365,22 @@ class MirrorsPage(Gtk.Box):
         self._results_group.set_visible(False)
         self._progress.set_fraction(0.0)
         self._progress.set_visible(True)
-        self._banner.set_title("Downloading Debian's mirror catalogue…")
+        self._banner.set_title(tr("Downloading mirror catalogue…"))
         self._banner.set_button_label("Stop")
         self._banner.set_revealed(True)
         try:
-            suite = source_settings().suite
+            settings = self._selected_settings()
+            suite = self._suite_override.get_text().strip() or settings.suite
+            from orbit_gtk.backend.mirrors import validate_suite
+
+            suite = validate_suite(suite)
+            components = tuple(self._components_override.get_text().split()) or settings.components
+            settings = replace(
+                settings,
+                suite=suite,
+                components=components,
+                source_packages=self._sources.get_active(),
+            )
         except UnsupportedMirrorDistribution:
             self._show_unsupported()
             return
@@ -257,8 +396,13 @@ class MirrorsPage(Gtk.Box):
 
             return wrapper
 
+        self._repository.set_sensitive(False)
+        self._banner.set_title(f"Downloading {settings.label} mirror catalogue…")
         self._worker = MirrorBenchmarkWorker(
             suite,
+            settings=settings,
+            https_only=self._https_only.get_active(),
+            countries=tuple(self._countries.get_text().upper().split()),
             on_masterlist=current(self._on_masterlist),
             on_progress=current(self._on_progress),
             on_result=current(self._on_result),
@@ -295,12 +439,15 @@ class MirrorsPage(Gtk.Box):
         latency.add_css_class("numeric")
         latency.add_css_class("caption")
         row.add_suffix(latency)
-        use = Gtk.Button(label="Use", valign=Gtk.Align.CENTER)
+        use = Gtk.Button(label=tr("Use"), valign=Gtk.Align.CENTER)
         use.add_css_class("flat")
         use.connect("clicked", self._on_use_one, info.url)
         row.add_suffix(use)
         row.add_prefix(Gtk.Image.new_from_icon_name("network-server-symbolic"))
         # Assign metadata before insertion: the list is already sorted.
+        row._selected = Gtk.CheckButton(valign=Gtk.Align.CENTER)
+        row._selected.set_tooltip_text(tr("Include this mirror in the selection"))
+        row.add_prefix(row._selected)
         row._latency = info.latency_ms
         row._url = info.url
         row._use = use
@@ -318,16 +465,29 @@ class MirrorsPage(Gtk.Box):
             self._finish_benchmark(
                 f"Done — {reachable} of {self._total} mirrors reachable"
                 if reachable
-                else "No mirrors responded. Check your connection and retry the benchmark."
+                else "No matching mirrors responded. Check your connection, country filters and HTTPS settings."
             )
         return False
 
     def _finish_benchmark(self, message: str) -> None:
+        self._repository.set_sensitive(self._operation is None)
         self._worker = None
         self._benchmark.set_sensitive(True)
         self._progress.set_visible(False)
         self._banner.set_title(message)
         self._banner.set_button_label("Dismiss")
+
+    def _apply_selection(self, _button):
+        urls = []
+        child = self._results.get_first_child()
+        while child:
+            if child._selected.get_active():
+                urls.append(child._url)
+            child = child.get_next_sibling()
+        if not urls or len(urls) > 16:
+            self.window.show_toast("Select between 1 and 16 mirrors")
+            return
+        self._apply_mirrors(urls)
 
     def _on_use_one(self, _button: Gtk.Button, url: str) -> None:
         self._apply_mirrors([url])
@@ -351,22 +511,63 @@ class MirrorsPage(Gtk.Box):
             return
         self._apply_mirrors(urls)
 
-    def _apply_mirrors(self, urls: list[str]) -> None:
-        if urls:
-            try:
-                source_settings()
-            except ValueError as error:
-                self.window.show_toast(str(error))
-                return
-            command = self.apt_manager.helper_command(
-                "set-mirrors", "--suite", source_settings().suite, "--urls", *urls
+    def _apply_mirrors(self, urls: list[str], confirmed=False) -> None:
+        try:
+            settings = self._selected_settings()
+        except (OSError, ValueError) as error:
+            self.window.show_toast(str(error))
+            return
+        override = self._suite_override.get_text().strip()
+        components = self._components_override.get_text().split()
+        sources = self._sources.get_active()
+        if urls and (override or components or sources) and not confirmed:
+            dialog = Adw.AlertDialog(
+                heading=tr("Save custom repository settings?"),
+                body=f"Suite: {override or settings.suite}\nComponents: {' '.join(components or settings.components)}\nSource packages: {'yes' if sources else 'no'}\nExisting system sources remain enabled. APT may choose packages from either suite after refresh.",
             )
-            title = "Save Orbit mirrors"
+            dialog.add_response("cancel", "Cancel")
+            dialog.add_response("save", "Save sources")
+            dialog.set_close_response("cancel")
+            dialog.connect(
+                "response",
+                lambda _, response: self._apply_mirrors(urls, True) if response == "save" else None,
+            )
+            dialog.present(self.window)
+            return
+        if urls:
+            command = self.apt_manager.helper_command(
+                "set-mirrors",
+                "--repository",
+                (
+                    f"manual:{settings.provider}:{settings.suite}:{settings.archive}:explicit"
+                    if self._manual_provider.get_selected()
+                    else settings.repository
+                ),
+                "--suite",
+                settings.suite,
+                "--urls",
+                *urls,
+            )
+            if override:
+                command += ["--override-suite", override]
+            if components:
+                command += ["--components", *components]
+            if sources:
+                command += ["--sources"]
+            title = f"Save mirrors · {settings.label}"
         else:
-            command = self.apt_manager.helper_command("clear-mirrors")
-            title = "Clear Orbit mirrors"
+            command = self.apt_manager.helper_command(
+                "clear-mirrors", "--repository", settings.repository
+            )
+            title = f"Clear mirrors · {settings.label}"
         if not self.window.claim_operation():
             return
+
+        if self._worker:
+            self._worker.stop()
+            self._run_id += 1
+            self._finish_benchmark("Benchmark stopped")
+        self._repository.set_sensitive(False)
 
         def completed(success):
             if success:
@@ -375,6 +576,7 @@ class MirrorsPage(Gtk.Box):
         def dismissed():
             self._operation_slot.remove(self._operation)
             self._operation = None
+            self._repository.set_sensitive(True)
             self.window.release_operation()
 
         self._operation = OperationView(

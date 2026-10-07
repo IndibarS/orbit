@@ -5,9 +5,11 @@ from collections import Counter
 
 from gi.repository import Gtk, Pango
 
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.widgets import status_chip
 
 ACTIONS = {
+    "downgrade": ("Downgrade", "warning"),
     "remove": ("Remove", "warning"),
     "purge": ("Purge", "error"),
     "install": ("Install", "success"),
@@ -36,12 +38,12 @@ class TransactionPlan(Gtk.Box):
         self.append(self._counts)
         filters = Gtk.Box(spacing=8)
         self._search = Gtk.SearchEntry(
-            placeholder_text="Find a package in this plan…", hexpand=True
+            placeholder_text=tr("Find a package in this plan…"), hexpand=True
         )
         self._search.connect("search-changed", lambda _: self._filter())
         filters.append(self._search)
         self._action_filter = Gtk.DropDown(model=Gtk.StringList.new(["All actions"]))
-        self._action_filter.set_tooltip_text("Filter changes by action")
+        self._action_filter.set_tooltip_text(tr("Filter changes by action"))
         self._action_filter.connect("notify::selected", lambda *_: self._filter())
         filters.append(self._action_filter)
         self.append(filters)

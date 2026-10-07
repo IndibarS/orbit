@@ -455,6 +455,7 @@ class MirrorTests(unittest.TestCase):
                     return_value={"https://existing.org/debian"},
                 ),
                 patch("orbit_gtk.backend.transactions.update") as update,
+                patch("orbit_gtk.backend.helper.validate_mirror"),
             ):
                 configure_mirrors(
                     ["https://existing.org/debian", "https://new.org/debian"], "sid", MagicMock()

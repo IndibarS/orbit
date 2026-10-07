@@ -6,12 +6,13 @@ from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import PackageInfo
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.screenshots import ScreenshotGallery
 from orbit_gtk.ui.widgets import action_row, package_icon
 
 
 class PackageDialog(Adw.Dialog):
-    def __init__(self, package: PackageInfo, *, on_action=None):
+    def __init__(self, package: PackageInfo, *, on_action=None, on_related=None):
         super().__init__(title=package.name, content_width=580, content_height=540)
         toolbar = Adw.ToolbarView()
         self.set_child(toolbar)
@@ -23,13 +24,13 @@ class PackageDialog(Adw.Dialog):
         )
         summary.set_header_suffix(package_icon(package, 64))
         page.add(summary)
-        if on_action:
-            actions = Adw.PreferencesGroup(title="Package actions")
+        if on_action and not package.providers:
+            actions = Adw.PreferencesGroup(title=tr("Package actions"))
             if package.is_held:
                 actions.add(
                     action_row(
-                        title="Held by APT",
-                        subtitle="Release the APT hold before changing this package.",
+                        title=tr("Held by APT"),
+                        subtitle=tr("Release the APT hold before changing this package."),
                     )
                 )
             else:
@@ -57,9 +58,9 @@ class PackageDialog(Adw.Dialog):
                             "Review removal before applying. Personal files are kept.",
                         )
                     )
-                    self._purge_configs = Gtk.CheckButton(label="Purge configuration files")
+                    self._purge_configs = Gtk.CheckButton(label=tr("Purge configuration files"))
                     self._purge_configs.set_tooltip_text(
-                        "Also remove package-managed system configuration files."
+                        tr("Also remove package-managed system configuration files.")
                     )
                 for action, title, subtitle in choices:
                     row = action_row(title=title, subtitle=subtitle)
@@ -84,6 +85,20 @@ class PackageDialog(Adw.Dialog):
                     if action == "remove":
                         row.add_suffix(self._purge_configs)
                     row.add_suffix(button)
+                    queue = Gtk.Button(label=tr("Select"), valign=Gtk.Align.CENTER)
+                    queue.set_tooltip_text(tr("Add to the package selection for a combined review"))
+                    queue.connect(
+                        "clicked",
+                        lambda _, selected=action: on_action(
+                            "queue:"
+                            + (
+                                "purge"
+                                if selected == "remove" and self._purge_configs.get_active()
+                                else selected
+                            )
+                        ),
+                    )
+                    row.add_suffix(queue)
                     actions.add(row)
             page.add(actions)
         fields = (
@@ -104,7 +119,48 @@ class PackageDialog(Adw.Dialog):
             if title == "Installation reason" and not package.is_installed:
                 continue
             summary.add(action_row(title=title, subtitle=value, subtitle_selectable=True))
-        description = Adw.PreferencesGroup(title="Description")
+        if package.providers:
+            providers = Adw.PreferencesGroup(title=tr("Packages providing this capability"))
+            for name in package.providers:
+                row = action_row(title=name)
+                if on_related:
+                    button = Gtk.Button(label=tr("Details"), valign=Gtk.Align.CENTER)
+                    button.connect("clicked", lambda _, selected=name: on_related(selected))
+                    row.add_suffix(button)
+                providers.add(row)
+            page.add(providers)
+        if package.versions:
+            versions = Adw.PreferencesGroup(
+                title=tr("Available versions and APT policy"),
+                description=tr(
+                    "Higher pin priority influences APT’s candidate selection. Selecting an older version requests a reviewed downgrade."
+                ),
+            )
+            page.add(versions)
+            for version, source, priority, downloadable in package.versions:
+                row = action_row(
+                    title=version,
+                    subtitle=f"{source} · priority {priority}"
+                    + (" · installed" if version == package.installed_version else ""),
+                )
+                if downloadable and on_action and not package.is_held:
+                    button = Gtk.Button(label=tr("Review"), valign=Gtk.Align.CENTER)
+
+                    def choose(_button, value=version):
+                        self.close()
+                        on_action(
+                            "install", {"versions": {package.full_name or package.name: value}}
+                        )
+
+                    button.connect("clicked", choose)
+                    row.add_suffix(button)
+                versions.add(row)
+        if package.relations:
+            relations = Adw.PreferencesGroup(title=tr("Dependencies and related packages"))
+            for title, value in package.relations:
+                relations.add(action_row(title=title, subtitle=value, subtitle_selectable=True))
+            page.add(relations)
+        description = Adw.PreferencesGroup(title=tr("Description"))
         description.add(
             Gtk.Label(
                 label=package.description or package.summary, wrap=True, xalign=0, selectable=True
@@ -116,6 +172,6 @@ class PackageDialog(Adw.Dialog):
         if urlparse(package.homepage).scheme in {"http", "https"}:
             description.add(
                 Gtk.LinkButton(
-                    uri=package.homepage, label="Project website", halign=Gtk.Align.START
+                    uri=package.homepage, label=tr("Project website"), halign=Gtk.Align.START
                 )
             )

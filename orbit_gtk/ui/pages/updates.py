@@ -8,6 +8,7 @@ from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import PackageInfo
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.operation_view import OperationView
 from orbit_gtk.ui.widgets import action_row, package_icon
 
@@ -29,7 +30,7 @@ class UpdatesPage(Gtk.Box):
         self._banner.connect("button-clicked", self._on_upgrade_all)
         self.append(self._banner)
         self._upgrade_options = Gtk.MenuButton(
-            label="Upgrade options",
+            label=tr("Upgrade options"),
             halign=Gtk.Align.END,
             margin_end=12,
             margin_top=6,
@@ -46,13 +47,15 @@ class UpdatesPage(Gtk.Box):
         )
         options.append(
             Gtk.Label(
-                label="Full upgrades may install or remove dependencies.\nReview every change before applying.\nYour configured release and sources stay the same.",
+                label=tr(
+                    "Full upgrades may install or remove dependencies.\nReview every change before applying.\nYour configured release and sources stay the same."
+                ),
                 wrap=True,
                 max_width_chars=40,
                 xalign=0,
             )
         )
-        full_upgrade = Gtk.Button(label="Review full upgrade")
+        full_upgrade = Gtk.Button(label=tr("Review full upgrade"))
         full_upgrade.connect("clicked", self._on_full_upgrade)
         options.append(full_upgrade)
         self._upgrade_popover.set_child(options)
@@ -73,25 +76,27 @@ class UpdatesPage(Gtk.Box):
         spinner = Gtk.Spinner(halign=Gtk.Align.CENTER)
         spinner.start()
         loading.append(spinner)
-        loading_label = Gtk.Label(label="Loading updates…")
+        loading_label = Gtk.Label(label=tr("Loading updates…"))
         loading_label.add_css_class("dim-label")
         loading.append(loading_label)
         self._stack.add_named(loading, "loading")
-        self._empty = Adw.StatusPage(icon_name="emblem-ok-symbolic", title="No cached upgrades")
+        self._empty = Adw.StatusPage(icon_name="emblem-ok-symbolic", title=tr("No cached upgrades"))
         check = Gtk.Button(
-            label="Refresh package lists", halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER
+            label=tr("Refresh package lists"), halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER
         )
         check.add_css_class("suggested-action")
         check.connect("clicked", self._on_refresh)
         self._empty.set_description(
-            "No upgrades are available in the cached package lists. Refresh to check repositories."
+            tr(
+                "No upgrades are available in the cached package lists. Refresh to check repositories."
+            )
         )
         self._empty.set_child(check)
         self._stack.add_named(self._empty, "empty")
         self._error = Adw.StatusPage(
-            icon_name="dialog-error-symbolic", title="Could not load updates"
+            icon_name="dialog-error-symbolic", title=tr("Could not load updates")
         )
-        retry = Gtk.Button(label="Retry loading", halign=Gtk.Align.CENTER)
+        retry = Gtk.Button(label=tr("Retry loading"), halign=Gtk.Align.CENTER)
         retry.connect("clicked", lambda _: self.window.refresh_all())
         self._error.set_child(retry)
         self._stack.add_named(self._error, "error")
@@ -190,7 +195,7 @@ class UpdatesPage(Gtk.Box):
         progress_box.append(status)
         bar = Gtk.ProgressBar()
         bar.set_tooltip_text(
-            "Download progress is measured; installation pulses until APT confirms completion."
+            tr("Download progress is measured; installation pulses until APT confirms completion.")
         )
         progress_box.append(bar)
         row.add_suffix(progress_box)
@@ -201,7 +206,7 @@ class UpdatesPage(Gtk.Box):
             "row": row,
             "progress_box": progress_box,
         }
-        badge = Gtk.Label(label="Kept back", visible=package.is_held_back)
+        badge = Gtk.Label(label=tr("Kept back"), visible=package.is_held_back)
         badge.add_css_class("badge")
         badge.add_css_class("warning")
         badge.set_tooltip_text(package.held_reason)
@@ -324,7 +329,7 @@ class UpdatesPage(Gtk.Box):
                 widgets = self._row_widgets[key]
             widgets["badge"].set_visible(True)
             widgets["badge"].set_tooltip_text(
-                "APT excluded this package from the reviewed upgrade."
+                tr("APT excluded this package from the reviewed upgrade.")
             )
             widgets["progress_box"].set_visible(False)
             if widgets["button"]:

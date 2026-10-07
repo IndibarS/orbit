@@ -21,6 +21,10 @@ def stage(destination: Path) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
         target.chmod(0o644)
+    for source in (ROOT / "orbit_gtk/locales").rglob("*.mo"):
+        target = destination / "usr/lib/orbit-gtk" / source.relative_to(ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
     files = {
         "orbit-helper": ("usr/libexec/orbit-gtk/orbit-helper", 0o755),
         "orbit-gtk": ("usr/bin/orbit-gtk", 0o755),
@@ -40,7 +44,7 @@ def stage(destination: Path) -> None:
         "Maintainer: Orbit local builds <orbit@localhost>\n"
         "Section: admin\nPriority: optional\n"
         f"Installed-Size: {(installed_size + 1023) // 1024}\n"
-        "Depends: python3 (>= 3.11), python3-apt, python3-gi, gir1.2-gtk-4.0 (>= 4.12), "
+        "Depends: python3 (>= 3.11), python3-apt, python3-regex, python3-gi, gir1.2-gtk-4.0 (>= 4.12), "
         "gir1.2-adw-1 (>= 1.5), pkexec\n"
         "Recommends: gir1.2-appstream-1.0, apt-config-icons\n"
         "Description: Native GTK package manager for Debian\n"

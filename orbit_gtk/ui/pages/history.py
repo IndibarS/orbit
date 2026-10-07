@@ -8,6 +8,7 @@ from gi.repository import Adw, GLib, Gtk, Pango
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import HistoryTransaction, PackageInfo
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.widgets import action_row, expander_row, status_chip
 
 _ACTIONS = {
@@ -24,19 +25,27 @@ class HistoryPage(Gtk.Box):
     def __init__(self, apt_manager: AptManager, _window: object) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.apt_manager = apt_manager
+        self.window = _window
+        self._limit = 200
         self._loaded = False
         self._generation = 0
         self._rows: list[Gtk.Widget] = []
 
         scroll = Gtk.ScrolledWindow(vexpand=True)
+        scroll.connect("edge-reached", self._edge_reached)
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.append(scroll)
         page = Adw.PreferencesPage()
         scroll.set_child(page)
         self._group = Adw.PreferencesGroup(
-            title="Transactions", description="Recent changes recorded by Nala or APT"
+            title=tr("Transactions"), description=tr("Changes recorded by Orbit, Nala and APT")
         )
         page.add(self._group)
+
+    def _edge_reached(self, _scroll, position):
+        if position == Gtk.PositionType.BOTTOM and len(self._rows) >= self._limit:
+            self._limit += 200
+            self.invalidate()
 
     def load_data(self) -> None:
         if self._loaded:
@@ -56,7 +65,7 @@ class HistoryPage(Gtk.Box):
 
     def _show_loading(self) -> None:
         self._clear_rows()
-        row = action_row(title="Loading transaction history…")
+        row = action_row(title=tr("Loading transaction history…"))
         spinner = Gtk.Spinner()
         spinner.start()
         row.add_prefix(spinner)
@@ -64,7 +73,7 @@ class HistoryPage(Gtk.Box):
         self._rows.append(row)
 
     def _fetch(self, generation: int) -> None:
-        GLib.idle_add(self._apply, generation, self.apt_manager.get_history())
+        GLib.idle_add(self._apply, generation, self.apt_manager.get_history(self._limit))
 
     def _apply(self, generation: int, transactions: list[HistoryTransaction]) -> bool:
         if generation != self._generation:
@@ -72,8 +81,8 @@ class HistoryPage(Gtk.Box):
         self._clear_rows()
         if not transactions:
             row = action_row(
-                title="No transaction history found",
-                subtitle="Nala and APT history logs are empty or unavailable.",
+                title=tr("No transaction history found"),
+                subtitle=tr("Nala and APT history logs are empty or unavailable."),
             )
             row.add_prefix(Gtk.Image.new_from_icon_name("document-open-recent-symbolic"))
             self._group.add(row)
@@ -84,6 +93,19 @@ class HistoryPage(Gtk.Box):
             self._group.add(row)
             self._rows.append(row)
         return False
+
+    def _replay(self, transaction, undo):
+        from orbit_gtk.backend.replay import replay_requests
+        from orbit_gtk.backend.transaction_options import option_arguments
+
+        try:
+            requests = replay_requests(transaction, undo)
+            self.window.run_privileged(
+                "Review history replay",
+                self.apt_manager.helper_command("batch", *option_arguments({"requests": requests})),
+            )
+        except ValueError as error:
+            self.window.show_toast(str(error))
 
     def _clear_rows(self) -> None:
         for row in self._rows:
@@ -145,7 +167,7 @@ class HistoryPage(Gtk.Box):
             if groups:
                 row.add_row(summary)
             else:
-                row.add_row(action_row(title="No package-level changes recorded"))
+                row.add_row(action_row(title=tr("No package-level changes recorded")))
             for index, (key, label, icon_name, color, _field, packages) in enumerate(groups):
                 group = expander_row(
                     title=label,
@@ -158,19 +180,35 @@ class HistoryPage(Gtk.Box):
                 row.add_row(group)
                 group.set_expanded(index == 0)
             details = expander_row(
-                title="Transaction details", subtitle="Command and requested user"
-            )
-            details.add_row(
-                action_row(title="Command", subtitle=transaction.command, subtitle_selectable=True)
+                title=tr("Transaction details"), subtitle=tr("Command and requested user")
             )
             details.add_row(
                 action_row(
-                    title="Requested by",
+                    title=tr("Command"), subtitle=transaction.command, subtitle_selectable=True
+                )
+            )
+            details.add_row(
+                action_row(
+                    title=tr("Requested by"),
                     subtitle=transaction.requested_by,
                     subtitle_selectable=True,
                 )
             )
             row.add_row(details)
+            if transaction.status == "Completed" and transaction.altered_count:
+                replay = action_row(
+                    title=tr("Review historical package changes"),
+                    subtitle=tr(
+                        "Undo restores package versions where available; it cannot restore deleted configuration or personal data."
+                    ),
+                )
+                for undo, label in ((False, "Redo"), (True, "Undo")):
+                    button = Gtk.Button(label=label, valign=Gtk.Align.CENTER)
+                    button.connect(
+                        "clicked", lambda _, reverse=undo: self._replay(transaction, reverse)
+                    )
+                    replay.add_suffix(button)
+                row.add_row(replay)
 
         row.connect("notify::expanded", expanded)
         return row

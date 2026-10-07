@@ -203,9 +203,51 @@ def _load_apt_history(paths: tuple[Path, ...] = APT_HISTORY_PATHS) -> list[Histo
     return transactions
 
 
-def load_transaction_history(limit: int = 200) -> list[HistoryTransaction]:
+def load_transaction_history(limit: int | None = 200) -> list[HistoryTransaction]:
     """Load the newest available Nala and APT entries without failing the page."""
-    transactions = [*_load_nala_history(), *_load_apt_history()]
+    from orbit_gtk.backend.journal import read_records
+
+    paths = tuple(sorted(Path("/var/log/apt").glob("history.log*")))
+    transactions = [*_load_nala_history(), *_load_apt_history(paths)]
+    for record in read_records():
+        if record.get("download_only"):
+            changes = []
+        else:
+            changes = record["changes"]
+        groups = {}
+        for change in changes:
+            if not isinstance(change, dict) or not change.get("name"):
+                continue
+            action = change.get("action")
+            field = {
+                "install": "installed_pkgs",
+                "upgrade": "upgraded_pkgs",
+                "remove": "removed_pkgs",
+                "purge": "purged_pkgs",
+                "reinstall": "reinstalled_pkgs",
+                "downgrade": "downgraded_pkgs",
+            }.get(action)
+            if field:
+                groups.setdefault(field, []).append(
+                    PackageInfo(
+                        name=change["name"],
+                        full_name=change["name"],
+                        installed_version=change.get("old_version"),
+                        latest_version=change.get("new_version"),
+                    )
+                )
+        transactions.append(
+            HistoryTransaction(
+                id="orbit-" + record["id"],
+                date=record["date"],
+                requested_by=record.get("requested_by", "Orbit"),
+                command="orbit " + record["action"],
+                operation=record["action"],
+                altered_count=len(changes),
+                status=record.get("status", "Unknown"),
+                **groups,
+            )
+        )
 
     def date_key(transaction):
         try:
@@ -214,4 +256,4 @@ def load_transaction_history(limit: int = 200) -> list[HistoryTransaction]:
             return datetime.min
 
     transactions.sort(key=date_key, reverse=True)
-    return transactions[:limit]
+    return transactions[:limit] if limit is not None else transactions

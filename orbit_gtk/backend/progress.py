@@ -6,7 +6,10 @@ uses the library callbacks directly instead of importing Nala's terminal state.
 
 from __future__ import annotations
 
+import difflib
+import os
 from collections.abc import Callable
+from pathlib import Path
 from time import monotonic
 
 from apt.progress import base
@@ -30,11 +33,12 @@ class CacheProgress(base.OpProgress):
 
 
 class DownloadProgress(base.AcquireProgress):
-    def __init__(self, emit: Emit, packages: dict[str, str] | None = None) -> None:
+    def __init__(self, emit: Emit, packages: dict[str, str] | None = None, cancelled=None) -> None:
         super().__init__()
         self.emit = emit
         self.description = "Connecting to repositories…"
         self.packages = packages or {}
+        self.cancelled = cancelled or (lambda: False)
 
     def fetch(self, item) -> None:
         self.description = item.description
@@ -56,6 +60,8 @@ class DownloadProgress(base.AcquireProgress):
         self.emit("warning", message=f"{item.description}: {item.owner.error_text}")
 
     def pulse(self, owner) -> bool:
+        if self.cancelled():
+            return False
         for worker in getattr(owner, "workers", ()):
             if worker.current_item:
                 percent = (
@@ -84,10 +90,12 @@ class DownloadProgress(base.AcquireProgress):
 
 
 class InstallProgress(base.InstallProgress):
-    def __init__(self, emit: Emit, packages=()) -> None:
+    def __init__(self, emit: Emit, packages=(), ask=None) -> None:
         super().__init__()
         self.emit = emit
         self.packages = set(packages)
+        self.ask = ask
+        self._input_pipe = os.pipe() if ask else None
         self._aliases = {}
         for key in self.packages:
             self._aliases.setdefault(key.split(":", 1)[0], []).append(key)
@@ -119,5 +127,49 @@ class InstallProgress(base.InstallProgress):
     def error(self, pkg: str, errormsg: str) -> None:
         self.emit("error", message=f"{pkg}: {errormsg}")
 
+    def fork(self):
+        pid = os.fork()
+        if self._input_pipe:
+            if pid == 0:
+                os.dup2(self._input_pipe[0], 0)
+                os.close(self._input_pipe[0])
+                os.close(self._input_pipe[1])
+        return pid
+
+    def __exit__(self, *args):
+        try:
+            return super().__exit__(*args)
+        finally:
+            if self._input_pipe:
+                for descriptor in self._input_pipe:
+                    os.close(descriptor)
+                self._input_pipe = None
+
     def conffile(self, current: str, new: str) -> None:
-        self.emit("warning", message=f"Keeping local configuration {current}; new version: {new}")
+        if not self.ask:
+            self.emit(
+                "warning", message=f"Keeping local configuration {current}; new version: {new}"
+            )
+            return
+
+        def content(path):
+            try:
+                with Path(path).open("rb") as source:
+                    return source.read(262144).decode("utf-8", "replace").splitlines(True)
+            except OSError as error:
+                return [str(error)]
+
+        diff = "".join(
+            difflib.unified_diff(content(current), content(new), fromfile=current, tofile=new)
+        )[:524288]
+        choice = self.ask(
+            {
+                "kind": "select",
+                "title": "Modified configuration file",
+                "description": current,
+                "details": diff or "No textual difference available",
+                "choices": "Keep local file, Install package version",
+                "default": "Keep local file",
+            }
+        )
+        os.write(self._input_pipe[1], b"Y\n" if choice == "Install package version" else b"N\n")

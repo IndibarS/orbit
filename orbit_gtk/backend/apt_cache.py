@@ -104,14 +104,35 @@ class OrbitAptCache:
                     cache.clear()
             return list(self._snapshots["upgradable"])
 
-    def search(self, query: str, limit: int = 200, cancelled=None) -> list[PackageInfo]:
+    def search(
+        self, query: str, limit: int = 200, cancelled=None, options=None
+    ) -> list[PackageInfo]:
         """Find real packages by name, summary, or description with deterministic ranking."""
+        options = options or {}
+        mode = options.get("mode", "text")
+        pattern = None
+        if mode == "regex":
+            import regex
+
+            if len(query) > 256:
+                raise ValueError("Regular expression is too long")
+            pattern = regex.compile(query, regex.IGNORECASE)
+        if mode == "glob":
+            from fnmatch import fnmatchcase
+
+        def matches(text):
+            if pattern is not None:
+                return bool(pattern.search(text, timeout=0.01))
+            if mode == "glob":
+                return fnmatchcase(text.casefold(), normalized)
+            return normalized in text.casefold()
+
         normalized = query.strip().casefold()
         if not normalized:
             return []
         with self._lock:
             cache = self._require_cache()
-            matches = []
+            found = []
             # APT 3 stores compressed indexes. Alphabetical package traversal
             # repeatedly seeks backwards in those files and can take minutes.
             # Read translated descriptions in their physical record order instead;
@@ -120,8 +141,16 @@ class OrbitAptCache:
             for package in cache:
                 if cancelled and cancelled():
                     return []
+                if options.get("status") == "installed" and not package.is_installed:
+                    continue
+                if options.get("status") == "upgradable" and not package.is_upgradable:
+                    continue
                 version = package.candidate or package.installed
                 if version is None:
+                    if options.get("virtual") and matches(package.name):
+                        found.append((0, package.name, package))
+                    continue
+                if options.get("virtual"):
                     continue
                 files = version._cand.translated_description.file_list
                 position = (files[0][0].id, files[0][1]) if files else (-1, 0)
@@ -140,22 +169,61 @@ class OrbitAptCache:
                     rank = 0
                 elif name.startswith(normalized):
                     rank = 1
-                elif normalized in name:
+                elif matches(name):
                     rank = 2
-                elif normalized in (version.summary or "").casefold():
+                elif not options.get("names_only") and matches(version.summary or ""):
                     rank = 3
-                elif normalized in (version.description or "").casefold():
+                elif not options.get("names_only") and matches(version.description or ""):
                     rank = 4
                 else:
                     continue
-                matches.append((rank, name, package))
-            best = nsmallest(max(0, limit), matches, key=lambda item: item[:2])
-            return [self._package_info(package) for _, _, package in best]
+                found.append((rank, name, package))
+            best = nsmallest(max(0, limit), found, key=lambda item: item[:2])
+            return [
+                self._package_info(package)
+                if self._is_real_package(package)
+                else PackageInfo(
+                    name=package.name,
+                    summary="Virtual package · choose a provider",
+                    providers=tuple(p.fullname for p in cache.get_providing_packages(package.name)),
+                )
+                for _, _, package in best
+            ]
 
     def get_package(self, name):
         with self._lock:
             cache = self._require_cache()
-            return self._package_info(cache[name]) if name in cache else None
+            if name not in cache:
+                return None
+            if not self._is_real_package(cache[name]):
+                return PackageInfo(
+                    name=name,
+                    summary="Virtual package · choose a provider",
+                    providers=tuple(p.fullname for p in cache.get_providing_packages(name)),
+                )
+            package = cache[name]
+            info = self._package_info(package)
+            candidate = package.candidate or package.installed
+            relations = tuple(
+                (key, candidate.record[key])
+                for key in (
+                    "Pre-Depends",
+                    "Depends",
+                    "Recommends",
+                    "Suggests",
+                    "Provides",
+                    "Conflicts",
+                    "Breaks",
+                    "Replaces",
+                    "Enhances",
+                )
+                if candidate.record.get(key)
+            )
+            versions = tuple(
+                (v.version, self._origin_name(v), v.policy_priority, v.downloadable)
+                for v in package.versions
+            )
+            return replace(info, versions=versions, relations=relations)
 
     def get_health(self) -> PackageHealth:
         """Inspect dpkg states without executing a repair or assuming rollback."""

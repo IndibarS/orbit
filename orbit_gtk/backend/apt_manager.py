@@ -60,8 +60,12 @@ class AptManager:
     def get_package_health(self):
         return self._cache.get_health()
 
-    def search_packages(self, query: str, cancelled=None) -> list[PackageInfo]:
-        return self._read_packages(lambda: self._cache.search(query, cancelled=cancelled))
+    def search_packages(
+        self, query: str, cancelled=None, limit=200, options=None
+    ) -> list[PackageInfo]:
+        return self._read_packages(
+            lambda: self._cache.search(query, cancelled=cancelled, limit=limit, options=options)
+        )
 
     def _read_packages(self, operation) -> list[PackageInfo]:
         try:
@@ -72,8 +76,8 @@ class AptManager:
         self._errors.message = None
         return self._metadata.decorate(packages)
 
-    def get_history(self) -> list[HistoryTransaction]:
-        return load_transaction_history()
+    def get_history(self, limit=200) -> list[HistoryTransaction]:
+        return load_transaction_history(limit)
 
     def get_system_info(self) -> dict[str, str]:
         """Return a coherent system identity for the dashboard and sidebar."""
@@ -83,9 +87,9 @@ class AptManager:
             "arch": platform.machine(),
         }
 
-    def get_orbit_mirrors(self) -> list[str]:
+    def get_orbit_mirrors(self, settings=None) -> list[str]:
         """Read the source file owned by Orbit; never present user sources as editable."""
-        return read_orbit_mirrors()
+        return read_orbit_mirrors(settings=settings)
 
     def get_cleanup_items(self) -> list[CleanupItem]:
         """Calculate the two cleanup categories the privileged helper can safely handle."""

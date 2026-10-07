@@ -444,6 +444,66 @@ class GuiTests(unittest.TestCase):
             run.assert_not_called()
             self.window._operation_active = False
 
+    def test_mirror_repository_switch_clears_stale_actions_and_saves_selected_archive(self):
+        from unittest.mock import patch
+
+        from orbit_gtk.backend.mirrors import SourceSettings
+
+        page = self.window._pages["mirrors"]
+        mint = SourceSettings("zena", ("main",), provider="linuxmint")
+        ubuntu = SourceSettings("noble", ("main",), provider="ubuntu")
+        page._show_profiles(
+            [mint, ubuntu], 0, ["https://mint.example"], set(), page._load_generation
+        )
+        self.assertEqual(page._repository.get_model().get_string(0), "Linux Mint · zena")
+        with patch.object(page, "invalidate"):
+            page._repository.set_selected(1)
+        self.assertEqual(page._settings, ubuntu)
+        self.assertEqual(page._active_urls, [])
+        self.assertEqual(page._active_rows, [])
+        self.assertFalse(page._clear.get_sensitive())
+        page._show_profiles([mint, ubuntu], 1, [], set(), page._load_generation)
+        with (
+            patch.object(page.apt_manager, "helper_command", return_value=["unused"]) as command,
+            patch.object(self.window, "claim_operation", return_value=False),
+        ):
+            page._apply_mirrors(["https://ubuntu.example"])
+        command.assert_called_once_with(
+            "set-mirrors",
+            "--repository",
+            "ubuntu:noble",
+            "--suite",
+            "noble",
+            "--urls",
+            "https://ubuntu.example",
+        )
+
+    def test_transaction_options_dialog_builds(self):
+        from orbit_gtk.ui.transaction_options import TransactionOptions
+        dialog = TransactionOptions(self.window, "install", ["bash"])
+        dialog.present(self.window)
+        self.spin(lambda: dialog.get_child() is not None)
+        dialog.close()
+
+    def test_devuan_mirror_selection_preserves_archive_layout(self):
+        from unittest.mock import patch
+
+        from orbit_gtk.backend.mirrors import SourceSettings
+
+        page = self.window._pages["mirrors"]
+        profiles = [
+            SourceSettings("ceres", ("main",), provider="devuan", archive=a)
+            for a in ("merged", "devuan")
+        ]
+        page._show_profiles(profiles, 1, [], set(), page._load_generation)
+        self.assertEqual(page._repository.get_model().get_string(1), "Devuan · ceres · devuan")
+        with (
+            patch.object(page.apt_manager, "helper_command", return_value=["unused"]) as command,
+            patch.object(self.window, "claim_operation", return_value=False),
+        ):
+            page._apply_mirrors(["https://mirror.example/devuan"])
+        self.assertIn("devuan:ceres:devuan", command.call_args.args)
+
     def test_derivative_mirror_page_explains_unsupported_catalogue(self):
         from unittest.mock import patch
 

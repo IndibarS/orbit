@@ -16,7 +16,7 @@ uses the same python-apt interfaces and adapts the relevant design patterns:
 | `dpkg.py`, progress classes | `progress.py`: python-apt `OpProgress`, `AcquireProgress` and `InstallProgress` callbacks become structured GUI events |
 | `search.py`, `set_search_origin` | `apt_cache.py`: read cached APT `PackageFile` labels instead of constructing trust-checking Origin objects for every displayed package |
 | `cache.py`, virtual-package filtering | filter inaccessible `$` packages and records without real versions |
-| `fetch.py`, `build_sources` / `write_sources` | Debian discovery and measurements; save a dedicated source file, skip existing URI/suite entries, and do not run APT refresh as part of saving |
+| `fetch.py`, `build_sources` / `write_sources` | `mirrors.py` and `mirror_catalogues.py`: distro-specific discovery and compatible Release measurements; save independent archive/suite stanzas, skip existing URI/suite entries, and do not run APT refresh as part of saving |
 | `debfile.py`, `cache.py` | `local_deb.py`: private archive staging, `apt.debfile` dependency checks and reviewed local installation |
 | `nala.py`, argument routing | `cli.py` and `main.py`: supported commands route into GUI pages/reviews through GApplication |
 | `history.py` | parse current and older upgrade record layouts, plus automatically removed packages, without importing CLI state |
@@ -28,7 +28,7 @@ copyright/license obligations; this refactor is an independent implementation
 around the distro-provided APT APIs.
 
 Orbit supports normal and full upgrades, install/remove/purge/reinstall,
-repository refresh, Debian mirror benchmarking, cleanup, history inspection and
+repository refresh, Debian/Ubuntu/Devuan/Mint/Kali mirror benchmarking, cleanup, history inspection and
 single local `.deb` installation. Nala-style commands navigate to GUI workflows;
 they do not bypass review or authorization. See [CLI and local packages](CLI-AND-LOCAL-PACKAGES.md).
 
@@ -38,8 +38,10 @@ forms remain absent. APT full-upgrade resolves dependency transitions within
 configured repositories; it is not a distribution-release migration wizard.
 
 Mirror saving writes Orbit's dedicated source file and leaves existing system or
-Nala sources untouched. It does not automatically refresh indexes. Derivatives
-retain normal APT operations but cannot use the Debian-only mirror catalogue.
+Nala sources untouched. It does not automatically refresh indexes. Separate
+providers discover Debian, Ubuntu, Devuan, Mint and Kali archives, including on other
+derivatives through configured sources and cached APT Origin metadata. Mint and its base
+distribution are selected independently; see [mirror support](MIRRORS.md).
 
 The [distro tests](DISTRO-TESTING.md) also exposed slow random access through
 compressed APT indexes. Orbit now visits translated description records in file

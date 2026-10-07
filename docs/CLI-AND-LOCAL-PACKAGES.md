@@ -48,7 +48,9 @@ orbit-gtk "./downloaded package.deb"
 
 `list` defaults to Installed; `--upgradable` opens Updates and does not accept a
 search term. `clean` requests archive cleanup, retaining repository indexes.
-`fetch` opens mirror benchmarking, available only on Debian. Full-upgrade permits
+`fetch` opens mirror benchmarking for the selected Debian, Ubuntu, Devuan, Mint or Kali
+archive/suite; the repository is chosen in the GUI, not through additional
+`fetch` arguments. See [mirror selection](MIRRORS.md). Full-upgrade permits
 reviewed dependency removals; it does not change distribution releases or sources.
 
 System changes still require administrator authentication and the applicable
@@ -72,7 +74,7 @@ The September implementation passed 37 GTK tests and 65 backend tests at that
 point. Current evidence is the [five-target Docker matrix](DISTRO-TESTING.md):
 CLI IPC, real isolated local transactions, GTK checks, and built-package
 installation/help all passed on Debian 13, Sid, Ubuntu, Mint and Kali. Each GTK
-suite ran 42 checks with one metadata-dependent artwork skip. No host package
+suite ran 43 checks with one metadata-dependent artwork skip. No host package
 installation or repository edits were performed.
 
 Limits: one local archive per request; no mixed local/repository batch or

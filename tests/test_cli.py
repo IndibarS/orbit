@@ -34,7 +34,6 @@ class CommandTests(unittest.TestCase):
         for arguments in (
             ["install"],
             ["install", "-y", "bash"],
-            ["install", "a.deb", "bash"],
             ["install-local", "a.txt"],
             ["list", "--installed", "--upgradable"],
         ):
@@ -44,6 +43,12 @@ class CommandTests(unittest.TestCase):
                 self.assertRaises(SystemExit),
             ):
                 parse_command(arguments)
+
+    def test_local_batch_can_include_repository_packages(self):
+        request = parse_command(["install", "a.deb", "b.deb", "bash"], "/tmp/caller")
+        self.assertEqual(request.command, "install-batch")
+        self.assertEqual(request.paths, ["/tmp/caller/a.deb", "/tmp/caller/b.deb"])
+        self.assertEqual(request.packages, ["bash"])
 
     def test_help_and_version_need_no_display(self):
         for option in ("--help", "--version"):

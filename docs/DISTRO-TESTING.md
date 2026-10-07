@@ -7,8 +7,8 @@ releases such as Debian 12 and Ubuntu 22.04 are outside this matrix.
 
 ## Verified results
 
-Completed 2026-10-07 (initial runs on 2026-10-06; the interrupted final Sid run
-was repeated to completion). These are the runtime versions actually observed:
+Completed 2026-10-07 and rerun on all five targets after adding distro-specific
+mirror discovery. These are the runtime versions actually observed:
 
 | Distribution | Python | GTK | libadwaita | Stages |
 | --- | --- | --- | --- | --- |
@@ -18,10 +18,13 @@ was repeated to completion). These are the runtime versions actually observed:
 | Linux Mint 22.3 | 3.12.3 | 4.14 | 1.5 | 8/8 passed |
 | Kali Rolling | 3.14.7 | 4.22 | 1.9 | 8/8 passed |
 
-All five GUI suites ran 42 checks, with one artwork check skipped because GIMP's
+All five GUI suites ran 43 checks, with one artwork check skipped because GIMP's
 AppStream artwork was absent. Each target passed six explicit network tests
-and the isolated transaction scenarios. Debian 13 and Sid were rerun after the
-Debian-only `.pgp` identity fix; all five include the search optimization.
+and the isolated transaction scenarios. All five include the search optimization,
+`.pgp` identity support and the mirror provider/selector feature. Final focused
+reruns on rebuilt images verified the configured archive identities, APT parsing
+of generated source stanzas, 12 mirror-provider tests and 3 GTK mirror tests.
+Those focused checks ran without network access after the final source-badge fix.
 Kali's image reports `VERSION_ID=2025.3` while using the rolling repository
 runtime above; this is a container snapshot, not a claim about a fresh installer.
 
@@ -81,9 +84,10 @@ This checks distribution API compatibility and package operations, not complete
 desktop certification. Real graphical Polkit authorization, Wayland, screen
 readers, distribution installer defaults, repository outages, and every
 possible dependency graph still need desktop/VM testing. Artwork tests may
-skip when repository AppStream metadata is absent. Debian-only mirror selection
-is intentionally unavailable on derivatives; their existing APT sources still
-serve package operations.
+skip when repository AppStream metadata is absent. Distro-specific mirror
+discovery now supports Debian, Ubuntu, Mint and Kali;
+see [MIRRORS.md](MIRRORS.md) for independent archive/suite selection and limits.
+LMDE is covered by source fixtures, not an additional distro image.
 
 ## Issues found and fixed
 
@@ -100,11 +104,38 @@ serve package operations.
   diagnostic measurements, not a universal performance guarantee.
 - Ubuntu's libadwaita 1.5 warned that Orbit's adaptive window lacked a minimum
   size. The window now declares one.
-- On derivatives, the Debian-only mirror catalogue appeared as a generic read
-  error. The page now explains the limitation and hides unusable controls.
+- The initial derivative limitation was shown as a generic read error. After
+  fixing that state, separate Ubuntu, Mint and Kali mirror providers were added;
+  unknown distributions retain an explanatory unsupported page.
 - The container fixtures needed Hatchling's separate `editables` package, Mint's
   actual base identity package, and an unmodified distro `dpkg-deb` executable.
   Those test-environment problems are corrected rather than counted as passes.
 
 For the overall assessment and remaining desktop/feature work, see
 [QUALITY.md](QUALITY.md) and [FEATURE-COVERAGE.md](FEATURE-COVERAGE.md).
+
+For focused mirror regressions after setup:
+
+```sh
+uv run python -m unittest discover -s tests -p test_mirror_providers.py -v
+GDK_BACKEND=x11 GSK_RENDERER=cairo GSETTINGS_BACKEND=memory ORBIT_GUI_TESTS=1 \
+  dbus-run-session -- xvfb-run -a uv run python -m unittest discover -s tests -p test_gui.py -k mirror -v
+```
+
+These fixture tests do not contact live catalogues or modify system source files.
+The full Docker command above also runs them as part of its regular suites.
+
+### Archive metadata detection follow-up
+
+Discovery no longer requires a matching OS ID. Offline fixture tests cover an
+unknown derivative with an Ubuntu base, mixed Kali/Debian archives, absent
+os-release, missing/unreadable/ambiguous metadata, and vendor-key exclusion.
+These fixtures do not establish full desktop support for additional distros.
+
+### Devuan catalogue coverage
+
+Devuan mirror discovery supports merged and Devuan-only archives. Focused tests
+cover catalogue records without blank separators, inactive/protocol filtering,
+source-layout isolation and wrong-Origin/Label rejection. Live smoke checks
+parsed 34 active HTTP(S) candidates and validated one mirror in both layouts.
+Devuan is not yet a target in the full container matrix above.

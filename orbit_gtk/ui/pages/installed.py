@@ -8,6 +8,7 @@ from gi.repository import Adw, Gio, GLib, GObject, Gtk, Pango
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import PackageInfo
+from orbit_gtk.i18n import tr
 from orbit_gtk.ui.widgets import package_icon
 
 
@@ -35,7 +36,9 @@ class InstalledPage(Gtk.Box):
         search_box.set_margin_start(12)
         search_box.set_margin_end(12)
         search_box.set_margin_top(12)
-        self._entry = Gtk.SearchEntry(hexpand=True, placeholder_text="Filter installed packages…")
+        self._entry = Gtk.SearchEntry(
+            hexpand=True, placeholder_text=tr("Filter installed packages…")
+        )
         self._entry.connect("search-changed", self._on_filter_changed)
         search_box.append(self._entry)
         self.append(search_box)
@@ -52,17 +55,17 @@ class InstalledPage(Gtk.Box):
         spinner = Gtk.Spinner(halign=Gtk.Align.CENTER)
         spinner.start()
         loading.append(spinner)
-        loading.append(Gtk.Label(label="Loading installed packages…"))
+        loading.append(Gtk.Label(label=tr("Loading installed packages…")))
         self._stack.add_named(loading, "loading")
         self._error = Adw.StatusPage(
-            icon_name="dialog-error-symbolic", title="Could not load packages"
+            icon_name="dialog-error-symbolic", title=tr("Could not load packages")
         )
-        retry = Gtk.Button(label="Retry loading", halign=Gtk.Align.CENTER)
+        retry = Gtk.Button(label=tr("Retry loading"), halign=Gtk.Align.CENTER)
         retry.connect("clicked", lambda _: self.window.refresh_all())
         self._error.set_child(retry)
         self._stack.add_named(self._error, "error")
         self._empty = Adw.StatusPage(
-            icon_name="package-x-generic-symbolic", title="No matching packages"
+            icon_name="package-x-generic-symbolic", title=tr("No matching packages")
         )
         self._stack.add_named(self._empty, "empty")
         scroll = Gtk.ScrolledWindow(vexpand=True)
@@ -115,7 +118,7 @@ class InstalledPage(Gtk.Box):
             return False
         if error:
             self._data_ready = False
-            self._summary.set_label("Package data unavailable")
+            self._summary.set_label(tr("Package data unavailable"))
             self._error.set_description(error)
             self._stack.set_visible_child_name("error")
             return False
@@ -159,7 +162,7 @@ class InstalledPage(Gtk.Box):
             f"{count:,} matching · {len(self._packages):,} installed · {self.apt_manager.format_size(total_size)}"
         )
         if not count:
-            self._empty.set_description("Try a different package name or summary.")
+            self._empty.set_description(tr("Try a different package name or summary."))
             self._stack.set_visible_child_name("empty")
         else:
             self._stack.set_visible_child_name("list")

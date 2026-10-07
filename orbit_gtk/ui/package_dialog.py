@@ -85,20 +85,6 @@ class PackageDialog(Adw.Dialog):
                     if action == "remove":
                         row.add_suffix(self._purge_configs)
                     row.add_suffix(button)
-                    queue = Gtk.Button(label=tr("Select"), valign=Gtk.Align.CENTER)
-                    queue.set_tooltip_text(tr("Add to the package selection for a combined review"))
-                    queue.connect(
-                        "clicked",
-                        lambda _, selected=action: on_action(
-                            "queue:"
-                            + (
-                                "purge"
-                                if selected == "remove" and self._purge_configs.get_active()
-                                else selected
-                            )
-                        ),
-                    )
-                    row.add_suffix(queue)
                     actions.add(row)
             page.add(actions)
         fields = (

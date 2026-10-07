@@ -187,3 +187,32 @@ deficits merely because Orbit lacks them.
 
 No numerical overall score is assigned: there is no agreed weighting or completed
 comparative acceptance/performance suite from which to derive one honestly.
+
+### Smart search follow-up
+
+Orbit now uses a single literal and typo-tolerant search instead of selectable
+text/glob/regex modes. Exact names rank first, then prefixes, name substrings or
+words, close name spellings, ordered abbreviations, summaries and descriptions. Fuzzy matching is bounded
+to one edit for 4–5 character terms, two for 6–8, and three for longer terms, including
+adjacent transpositions. Matching name characters use a yellow background and dark text with escaped
+markup. Abbreviations such as `hlwd` match `hollywood`: letters must appear in
+order, start at a name/component boundary and retain at least a third of that
+name/component. These matches rank below spelling corrections. Slash patterns
+such as `*/d` offer an explicit correction to `*d` in the empty-state UI.
+Short terms stay literal; descriptions do not undergo fuzzy matching.
+Shell-style name patterns (`*`, `?`, `[a-z]`, `[!a-z]`) are recognized automatically
+and match the whole package name, with matching literals/ranges highlighted.
+For example, `hollywd`, `h*d`, and `?o*` match `hollywood`; `[a-z]h*` matches names
+whose second letter is `h`, such as `thunar`. Malformed brackets remain literal.
+Patterns filter names only; unrestricted regular expressions are not evaluated.
+Installed, upgradable, virtual and names-only filters remain available, with
+additional results loaded on scroll. This supersedes the search baseline above;
+no separate pattern-mode selector is needed.
+
+### Local-package workflow follow-up
+
+The persistent GUI selection basket was removed at the user's request. Package
+details now offer direct actions only. The single **Browse** file picker accepts
+one or multiple local archives; multiple files are resolved and reviewed together.
+The separate **Multiple…** control is removed. Backend batch transactions remain
+in use by local installs, CLI requests and history replay.

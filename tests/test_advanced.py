@@ -18,6 +18,32 @@ from orbit_gtk.cli import parse_command
 
 
 class AdvancedTests(unittest.TestCase):
+    def test_malformed_journal_records_do_not_break_history(self):
+        import json
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index, data in enumerate(
+                [
+                    {"changes": []},
+                    {"id": "bad", "date": "today", "action": [], "changes": []},
+                    {
+                        "id": "bad",
+                        "date": "today",
+                        "action": "install",
+                        "changes": [],
+                        "status": "Started",
+                        "pid": [],
+                    },
+                ]
+            ):
+                (root / f"bad{index}.json").write_text(json.dumps(data))
+            journal = Journal("update", directory=root)
+            journal.event("complete", {})
+            records = read_records(root)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["status"], "Completed")
+
     def test_residual_config_purge(self):
         pkg = package(installed=False, delete=True)
         pkg._pkg.current_state = apt_pkg.CURSTATE_CONFIG_FILES
@@ -153,9 +179,3 @@ class ConfigurationTests(unittest.TestCase):
             "ubuntu",
         )
         self.assertEqual(result[0].country_code, "DE")
-
-    def test_regex_search_timeout_is_bounded(self):
-        import regex
-
-        with self.assertRaises(TimeoutError):
-            regex.compile("(a+)+$").search("a" * 100000 + "!", timeout=0.001)

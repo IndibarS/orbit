@@ -60,7 +60,7 @@ class OperationView(Gtk.Box):
         self._phase.add_css_class("title-2")
         content.append(self._phase)
         self._status = Gtk.Label(
-            label=tr("Waiting for administrator authorization"), wrap=True, selectable=True
+            label=tr("Waiting for administrator authorization"), wrap=True, selectable=False
         )
         content.append(self._status)
         self._progress = Gtk.ProgressBar(show_text=True)
@@ -91,9 +91,10 @@ class OperationView(Gtk.Box):
         log_scroll = Gtk.ScrolledWindow(min_content_height=120, max_content_height=180)
         log_scroll.set_child(log)
         self._details.add_row(log_scroll)
-        group = Adw.PreferencesGroup()
-        group.add(self._details)
-        content.append(group)
+        self._details_group = Adw.PreferencesGroup(visible=False)
+        self._details.set_visible(False)
+        self._details_group.add(self._details)
+        content.append(self._details_group)
 
         footer = Gtk.Box(spacing=12, halign=Gtk.Align.END)
         self.footer = footer
@@ -347,9 +348,7 @@ class OperationView(Gtk.Box):
             self._phase.set_label("Completed with warnings" if self._warning_count else "Completed")
             messages = ["Operation completed successfully.", *self._notices]
             if self._warning_count:
-                messages.append(
-                    f"{self._warning_count} warnings reported. Review the details below."
-                )
+                messages.append(f"{self._warning_count} warnings reported.")
                 messages.extend(self._warnings)
                 self._details.set_expanded(True)
             self._status.set_label("\n".join(messages))
@@ -364,9 +363,7 @@ class OperationView(Gtk.Box):
             self._icon.set_from_icon_name("dialog-information-symbolic")
         else:
             self._phase.set_label(tr("Operation failed"))
-            self._status.set_label(
-                self._error or f"The helper exited with status {code}. See technical details."
-            )
+            self._status.set_label(self._error or f"The helper exited with status {code}.")
             self._icon.set_from_icon_name("dialog-error-symbolic")
             self._details.set_expanded(True)
         color = (
@@ -380,6 +377,9 @@ class OperationView(Gtk.Box):
         )
         for widget in (self._phase, self._icon):
             widget.add_css_class(color)
+        # Recompute once the final summary is known, including logs already flushed.
+        self._log_dirty = True
+        self._flush_log()
         if self._on_done:
             self._on_done(success)
 
@@ -396,11 +396,20 @@ class OperationView(Gtk.Box):
     def _flush_log(self) -> None:
         if not self._log_dirty:
             return
+        lines = self._log_tail.split("\n")
+        if self._finished:
+            summary_lines = {line.strip() for line in self._status.get_label().splitlines()}
+            lines = [line for line in lines if line.strip() not in summary_lines]
+        has_details = any(line.strip() for line in lines)
+        self._details.set_visible(has_details)
+        self._details_group.set_visible(has_details)
+        if not has_details:
+            self._details.set_expanded(False)
         # Bound individual layout runs too: one enormous line can stall Pango.
         self._buffer.set_text(
             "\n".join(
                 line[start : start + 512]
-                for line in self._log_tail.split("\n")
+                for line in lines
                 for start in range(0, max(1, len(line)), 512)
             )
         )

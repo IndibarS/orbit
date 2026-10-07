@@ -241,6 +241,7 @@ class GuiTests(unittest.TestCase):
             "apt upgrade",
             "upgrade",
             502,
+            status="Completed",
             upgraded_pkgs=[
                 PackageInfo(name=f"package-{i}", installed_version="1", latest_version="2")
                 for i in range(500)
@@ -263,6 +264,26 @@ class GuiTests(unittest.TestCase):
         groups = {w.get_title(): w for w in descendants(row) if isinstance(w, Adw.ExpanderRow)}
         self.assertIn("Purged", groups)
         self.assertIn("Removed", groups)
+        self.assertTrue(row.has_css_class("orbit-expander"))
+        self.assertFalse(groups["Removed"].get_expanded())
+        self.assertTrue(groups["Removed"].has_css_class("orbit-expander"))
+        self.assertTrue(row.get_expanded())
+        buttons = [w for w in descendants(row) if isinstance(w, Gtk.Button)]
+        replay_buttons = [
+            w for w in buttons if w.get_icon_name() in {"edit-undo-symbolic", "edit-redo-symbolic"}
+        ]
+        self.assertEqual(len(replay_buttons), 2)
+        for button in replay_buttons:
+            self.assertIn("review", button.get_tooltip_text())
+        from unittest.mock import patch
+
+        with patch.object(page, "_replay") as replay:
+            for button in replay_buttons:
+                button.emit("clicked")
+                replay.assert_called_with(
+                    transaction, button.get_icon_name() == "edit-undo-symbolic"
+                )
+
         labels = [w.get_label() for w in descendants(row) if isinstance(w, Gtk.Label)]
         self.assertIn("500 upgraded", labels)
         self.assertIn("1 purged", labels)
@@ -276,6 +297,65 @@ class GuiTests(unittest.TestCase):
         row.set_expanded(True)
         self.assertEqual(len([w for w in descendants(row) if isinstance(w, Gtk.ListView)]), 2)
         self.assertEqual(page._package_subtitle("upgrade", transaction.upgraded_pkgs[0]), "1 → 2")
+        self.assertTrue(row.has_css_class("history-transaction"))
+        self.assertTrue(groups["Removed"].has_css_class("history-branch"))
+        if os.environ.get("ORBIT_HISTORY_SCREENSHOT"):
+            self.window.navigate("history")
+            start = time.monotonic()
+            self.spin(lambda: time.monotonic() - start > 0.5)
+            subprocess.run(
+                ["import", "-window", "root", os.environ["ORBIT_HISTORY_SCREENSHOT"]], check=True
+            )
+
+    def test_history_cancelled_plan_is_not_presented_as_completed(self):
+        from orbit_gtk.backend.models import HistoryTransaction, PackageInfo
+
+        page = self.window._pages["history"]
+        transaction = HistoryTransaction(
+            "cancelled",
+            "2026-01-01",
+            "user",
+            "orbit install",
+            "install",
+            1,
+            status="Cancelled",
+            installed_pkgs=[PackageInfo(name="example", latest_version="1")],
+        )
+        row = page._make_row(transaction)
+        self.assertEqual(row.get_subtitle(), "1 requested package changes")
+        row.set_expanded(True)
+
+        def descendants(widget):
+            yield widget
+            child = widget.get_first_child()
+            while child:
+                yield from descendants(child)
+                child = child.get_next_sibling()
+
+        titles = [w.get_title() for w in descendants(row) if isinstance(w, Adw.ExpanderRow)]
+        self.assertIn("Install requests", titles)
+        self.assertFalse(
+            any(
+                isinstance(w, Gtk.Button)
+                and w.get_icon_name() in {"edit-undo-symbolic", "edit-redo-symbolic"}
+                for w in descendants(row)
+            )
+        )
+
+    def test_history_read_failure_and_stale_callbacks(self):
+        from unittest.mock import patch
+
+        page = self.window._pages["history"]
+        with patch.object(
+            page.apt_manager, "get_history", side_effect=RuntimeError("Cannot read history")
+        ):
+            page._fetch(page._generation, 200)
+        self.spin(lambda: bool(page._rows) and page._rows[0].get_title() == "History unavailable")
+        self.assertEqual(page._rows[0].get_subtitle(), "Cannot read history")
+        page._apply(page._generation - 1, [])
+        self.assertEqual(page._rows[0].get_title(), "History unavailable")
+        page._apply(page._generation, [])
+        self.assertEqual(page._rows[0].get_title(), "No transaction history found")
 
     def test_installed_filter_cannot_hide_loading_or_error(self):
         from orbit_gtk.backend.models import PackageInfo
@@ -407,13 +487,37 @@ class GuiTests(unittest.TestCase):
             patch.object(self.window, "install_local") as install,
         ):
             page._local_button.emit("clicked")
-            chooser.open.assert_called_once()
+            chooser.open_multiple.assert_called_once()
             filters = chooser.set_filters.call_args.args[0]
             self.assertEqual(filters.get_item(0).get_name(), "Debian packages (.deb)")
-            chooser.open_finish.return_value = Gio.File.new_for_path("/tmp/downloaded package.deb")
-            callback = chooser.open.call_args.args[2]
+            selected = Gio.ListStore.new(Gio.File)
+            selected.append(Gio.File.new_for_path("/tmp/downloaded package.deb"))
+            chooser.open_multiple_finish.return_value = selected
+            callback = chooser.open_multiple.call_args.args[2]
             callback(chooser, None)
             install.assert_called_once_with("/tmp/downloaded package.deb")
+            install.reset_mock()
+            selected.append(Gio.File.new_for_path("/tmp/another.deb"))
+            with patch.object(self.window, "run_privileged") as run:
+                callback(chooser, None)
+                install.assert_not_called()
+                self.assertEqual(
+                    run.call_args.args[1],
+                    self.window.apt_manager.helper_command(
+                        "install-batch",
+                        "--paths",
+                        "/tmp/downloaded package.deb",
+                        "/tmp/another.deb",
+                    ),
+                )
+                run.reset_mock()
+                selected.remove_all()
+                callback(chooser, None)
+                run.assert_not_called()
+                selected.append(Gio.File.new_for_uri("https://example.test/package.deb"))
+                callback(chooser, None)
+                run.assert_not_called()
+
         self.window._operation_active = True
         with patch("orbit_gtk.ui.window.Gtk.FileDialog") as create:
             page._local_button.emit("clicked")
@@ -480,6 +584,7 @@ class GuiTests(unittest.TestCase):
 
     def test_transaction_options_dialog_builds(self):
         from orbit_gtk.ui.transaction_options import TransactionOptions
+
         dialog = TransactionOptions(self.window, "install", ["bash"])
         dialog.present(self.window)
         self.spin(lambda: dialog.get_child() is not None)
@@ -611,7 +716,10 @@ class GuiTests(unittest.TestCase):
         self.window._nav_list.select_row(self.window._nav_list.get_row_at_index(2))
         browse._entry.set_text("bash")
         self.spin(lambda: browse._stack.get_visible_child_name() == "results")
-        self.assertEqual(browse._list.get_first_child().get_title(), "bash")
+        self.assertEqual(
+            browse._list.get_first_child().get_title(),
+            "<span background='#f6d32d' foreground='#241f00'>bash</span>",
+        )
         mirrors = self.window._pages["mirrors"]
         mirrors._on_done([], None)
         self.assertIn("Check your connection", mirrors._banner.get_title())
@@ -652,6 +760,51 @@ class GuiTests(unittest.TestCase):
         )
         self.assertIsNone(page._row_widgets["held"]["button"])
 
+    def test_smart_search_highlights_title_and_escapes_metadata(self):
+        from orbit_gtk.backend.models import PackageInfo
+
+        page = self.window._pages["browse"]
+        page._entry.set_text("firfox")
+        row = page._make_row(PackageInfo(name="firefox", summary="Tools <b>& utilities"))
+        self.assertTrue(row.get_use_markup())
+        self.assertEqual(
+            row.get_title(),
+            "<span background='#f6d32d' foreground='#241f00'>fir</span>e<span background='#f6d32d' foreground='#241f00'>fox</span>",
+        )
+        self.assertEqual(row.get_subtitle(), "Tools &lt;b&gt;&amp; utilities")
+        for query, title in [
+            (
+                "hollywd",
+                "<span background='#f6d32d' foreground='#241f00'>hollyw</span>oo<span background='#f6d32d' foreground='#241f00'>d</span>",
+            ),
+            (
+                "hlwd",
+                "<span background='#f6d32d' foreground='#241f00'>h</span>o<span background='#f6d32d' foreground='#241f00'>l</span>ly<span background='#f6d32d' foreground='#241f00'>w</span>oo<span background='#f6d32d' foreground='#241f00'>d</span>",
+            ),
+            (
+                "h*d",
+                "<span background='#f6d32d' foreground='#241f00'>h</span>ollywoo<span background='#f6d32d' foreground='#241f00'>d</span>",
+            ),
+            ("?o*", "h<span background='#f6d32d' foreground='#241f00'>o</span>llywood"),
+        ]:
+            page._entry.set_text(query)
+            row = page._make_row(PackageInfo(name="hollywood"))
+            self.assertEqual(row.get_title(), title)
+        self.assertFalse(hasattr(page, "_mode"))
+        page._entry.set_text("")
+
+    def test_search_explains_slashes_and_offers_correction(self):
+        page = self.window._pages["browse"]
+        page._entry.set_text("*/d")
+        page._show_results("*/d", page._generation, [], None)
+        self.assertIn("slashes", page._placeholder.get_description())
+        correction = page._placeholder.get_child()
+        self.assertEqual(correction.get_label(), "Search “*d”")
+        correction.emit("clicked")
+        self.assertEqual(page._entry.get_text(), "*d")
+        self.assertIsNone(page._placeholder.get_child())
+        page._entry.set_text("")
+
     def test_search_limit_is_explicit(self):
         from orbit_gtk.backend.models import PackageInfo
 
@@ -676,7 +829,30 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(dialog.view._phase.get_label(), "Completed with warnings")
         self.assertIn("repository was skipped", dialog.view._status.get_label())
         self.assertTrue(dialog.view._phase.has_css_class("warning"))
+        self.assertFalse(dialog.view._details.get_visible())
+        self.assertFalse(dialog.view._details_group.get_visible())
+        self.assertFalse(dialog.view._status.get_selectable())
+        if dialog.get_mapped():
+            dialog.close()
+
+    def test_warning_retains_only_additional_technical_details(self):
+        import json
+
+        events = [
+            {"event": "warning", "message": "Repository unavailable"},
+            {"event": "log", "message": "Repository unavailable\nConnection attempt timed out\n"},
+            {"event": "complete"},
+        ]
+        command = [sys.executable, "-c", f"print({chr(10).join(json.dumps(e) for e in events)!r})"]
+        dialog = OperationDialog("Warnings", command)
+        dialog.present(self.window)
+        self.spin(lambda: dialog.view._finished)
+        self.assertTrue(dialog.view._details.get_visible())
         self.assertTrue(dialog.view._details.get_expanded())
+        buffer = dialog.view._buffer
+        text = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), False)
+        self.assertIn("Connection attempt timed out", text)
+        self.assertNotIn("Repository unavailable", text)
         if dialog.get_mapped():
             dialog.close()
 
@@ -938,7 +1114,10 @@ class GuiTests(unittest.TestCase):
         browse = self.window._pages["browse"]
         browse._entry.set_text("bash")
         self.spin(lambda: browse._stack.get_visible_child_name() == "results")
-        self.assertEqual(browse._list.get_first_child().get_title(), "bash")
+        self.assertEqual(
+            browse._list.get_first_child().get_title(),
+            "<span background='#f6d32d' foreground='#241f00'>bash</span>",
+        )
         if os.environ.get("ORBIT_SCREENSHOT"):
             subprocess.run(
                 ["import", "-window", "root", os.environ["ORBIT_SCREENSHOT"]], check=True

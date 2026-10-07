@@ -7,7 +7,6 @@ import sys
 if sys.version_info < (3, 11):
     raise SystemExit("Orbit requires Python 3.11 or newer.")
 import apt
-import regex
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")

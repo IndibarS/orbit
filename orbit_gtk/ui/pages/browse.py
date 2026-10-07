@@ -8,6 +8,7 @@ from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import PackageInfo
+from orbit_gtk.backend.search import SmartSearch
 from orbit_gtk.i18n import tr
 from orbit_gtk.ui.widgets import action_row, package_icon
 
@@ -28,23 +29,24 @@ class BrowsePage(Gtk.Box):
         search_box.set_margin_top(12)
         search_box.set_margin_bottom(8)
         self._entry = Gtk.SearchEntry(hexpand=True, placeholder_text=tr("Search packages…"))
+        self._entry.set_tooltip_text(
+            tr(
+                "Search names and descriptions, including close spellings. "
+                "Name patterns: * matches any letters, ? matches one, [a-z] matches a range."
+            )
+        )
         self._entry.connect("changed", self._on_search_changed)
         search_box.append(self._entry)
-        selection = Gtk.Button(label=tr("Selected changes"))
-        selection.connect("clicked", self.window.show_selection)
-        search_box.append(selection)
         self.append(search_box)
         filters = Gtk.Box(spacing=8, margin_start=12, margin_end=12, margin_bottom=8)
-        self._mode = Gtk.DropDown(model=Gtk.StringList.new(["Text", "Glob", "Regex"]))
         self._filter = Gtk.DropDown(
             model=Gtk.StringList.new(
                 ["All packages", "Installed", "Upgradable", "Virtual packages"]
             )
         )
         self._names_only = Gtk.CheckButton(label=tr("Names only"))
-        for control in (self._mode, self._filter, self._names_only):
+        for control in (self._filter, self._names_only):
             filters.append(control)
-        self._mode.connect("notify::selected", lambda *_: self._on_search_changed(self._entry))
         self._filter.connect("notify::selected", lambda *_: self._on_search_changed(self._entry))
         self._names_only.connect("toggled", lambda *_: self._on_search_changed(self._entry))
         self.append(filters)
@@ -54,7 +56,9 @@ class BrowsePage(Gtk.Box):
         local_group.set_margin_bottom(8)
         local_row = action_row(
             title=tr("Install a downloaded package"),
-            subtitle=tr("Choose a local .deb file, then review the package and its dependencies."),
+            subtitle=tr(
+                "Choose one or more local .deb files, then review the packages and their dependencies."
+            ),
         )
         local_row.add_prefix(Gtk.Image(icon_name="package-x-generic-symbolic", pixel_size=32))
         self._local_button = Gtk.Button(label=tr("Browse"), valign=Gtk.Align.CENTER)
@@ -63,9 +67,6 @@ class BrowsePage(Gtk.Box):
             "clicked", lambda button: self.window._choose_local_package(button)
         )
         local_row.add_suffix(self._local_button)
-        batch = Gtk.Button(label=tr("Multiple…"), valign=Gtk.Align.CENTER)
-        batch.connect("clicked", self.window._choose_local_packages)
-        local_row.add_suffix(batch)
         remote = Gtk.Button(label=tr("From URL…"), valign=Gtk.Align.CENTER)
 
         def from_url(_):
@@ -148,6 +149,7 @@ class BrowsePage(Gtk.Box):
             self._debounce_id = None
         query = self._entry.get_text().strip()
         self._clear_results()
+        self._placeholder.set_child(None)
         if len(query) < 2:
             self._placeholder.set_title(tr("Search packages"))
             self._placeholder.set_description(
@@ -163,7 +165,6 @@ class BrowsePage(Gtk.Box):
     def _begin_search(self, query: str, generation: int) -> bool:
         self._debounce_id = None
         self._search_options = {
-            "mode": ("text", "glob", "regex")[self._mode.get_selected()],
             "status": ("all", "installed", "upgradable", "all")[self._filter.get_selected()],
             "virtual": self._filter.get_selected() == 3,
             "names_only": self._names_only.get_active(),
@@ -214,7 +215,21 @@ class BrowsePage(Gtk.Box):
         )
         if not results:
             self._placeholder.set_title(tr("No packages found"))
-            self._placeholder.set_description(tr("Try a shorter or different search term."))
+            self._placeholder.set_child(None)
+            if "/" in query and any(char in query for char in "*?["):
+                suggestion = query.replace("/", "")
+                self._placeholder.set_description(
+                    tr(
+                        "Package names do not contain slashes. Use * for any characters; "
+                        "for example, *d finds names ending in d."
+                    )
+                )
+                retry = Gtk.Button(label=f"Search “{suggestion}”", halign=Gtk.Align.CENTER)
+                retry.add_css_class("suggested-action")
+                retry.connect("clicked", lambda _: self._entry.set_text(suggestion))
+                self._placeholder.set_child(retry)
+            else:
+                self._placeholder.set_description(tr("Try a shorter or different search term."))
             self._stack.set_visible_child_name("placeholder")
             return False
         for package in results:
@@ -231,6 +246,10 @@ class BrowsePage(Gtk.Box):
         if package.is_installed:
             details = f"Installed {package.installed_version or ''} · {details}".strip()
         row = action_row(title=package.name, subtitle=details[:180])
+        matcher = SmartSearch(self._entry.get_text())
+        row.set_title(matcher.markup(package.name))
+        row.set_subtitle(GLib.markup_escape_text(details[:180]))
+        row.set_use_markup(True)
         row.set_activatable(True)
         row.connect("activated", lambda _: self.window.show_package_details(package))
         row.add_prefix(package_icon(package))

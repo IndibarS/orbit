@@ -99,7 +99,18 @@ promise an absolute time bound for the operating system's DNS resolver.
   Transaction reviews show colored action counts and searchable package/version
   rows. Filtering is for inspection: Apply always uses the complete reviewed
   plan. Removals receive a prominent warning and destructive Apply styling.
-- **Browse / Installed:** search real package data, inspect package details,
+- **Browse / Installed:** smart search ranks exact names first, followed by prefixes,
+  name matches, close spellings, abbreviations, and matching summaries/descriptions. Matching
+  letters in package names use a yellow background with dark text. Multiple words can appear in any
+  order; short terms stay literal to avoid noisy matches. Name patterns are
+  recognized automatically: `*` matches any number of characters, `?` matches
+  one, and `[a-z]` matches a character range. Patterns match the whole package
+  name (use `*term*` for contains); no mode selector is needed. For example,
+  `hollywd`, `hlwd`, `hoklywops`, `h*d`, and `?o*` can find `hollywood`.
+  Abbreviations match ordered letters starting at a name/component boundary.
+  Invalid slash patterns offer a correction button instead of silently failing.
+  Installed/upgradable/virtual and names-only filters
+  remain available. Search real package data, inspect package details,
   install or remove after reviewing all dependency changes. Installed uses recycled
   rows so scrolling does not retain a widget for every package; no “Show more”
   button is needed. Ctrl+F opens search or focuses the installed
@@ -255,16 +266,18 @@ above, or **Open With → Orbit** on a `.deb` after installing the desktop entry
 `orbit-gtk install-local /path/to/package.deb` and `orbit-gtk /path/to/package.deb`
 are also supported. Relative paths resolve from the calling terminal's directory.
 
-Orbit accepts one regular archive at a time. It stages a private copy, checks
-architecture/conflicts/dependencies using `apt.debfile`, and reviews the package
-and repository dependency changes together. Repository dependencies retain APT
-signature checks; a local archive itself is not authenticated by repository
-signatures. Missing dependencies may require internet access. Download failure
-prevents the local install and is shown in the GUI. A later maintainer-script
-failure can leave dependencies installed or the package partially configured;
-Home's package-health warning helps identify that state. Holds and downgrades
-are rejected. Mixed local/repository requests and batches of local archives
-are not supported yet.
+The **Browse** picker accepts one or multiple `.deb` files. A single archive uses
+`apt.debfile` checks; multiple archives are staged together so APT can resolve
+dependencies between them and repository packages in one reviewed transaction.
+Private copies are used for installation. Repository dependencies retain APT
+signature checks; local archives are not authenticated by repository signatures.
+Missing dependencies may require internet access. Download failure prevents
+installation and is shown in the GUI. A later maintainer-script failure can leave
+packages partially configured; Home's package-health warning helps identify that
+state.
+
+The persistent **Selected changes** basket has been removed. Package actions open
+their review directly; multiple local archives use the same **Browse** picker.
 
 ### Distribution testing
 
@@ -290,3 +303,9 @@ their own OS identity. With no recognizable sources, Orbit reports the OS codena
 - [Feature coverage and acceptance backlog](docs/FEATURE-COVERAGE.md)
 - [Nala adaptation notes](docs/NALA_REFERENCE.md)
 - [Historical September audit](docs/AUDIT-2026-09-24.md)
+
+History uses connecting lines and indentation to distinguish transactions, action
+groups and packages. Undo/redo icons offer tooltips and always open a fresh review.
+Failed or cancelled entries describe requested changes, which may not have been
+applied. Corrupt history records are skipped, and unexpected read errors offer
+Retry instead of leaving the page loading.

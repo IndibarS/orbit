@@ -6,6 +6,7 @@ import gzip
 import json
 import logging
 import re
+import zlib
 from datetime import datetime
 from pathlib import Path
 
@@ -64,7 +65,7 @@ def _load_nala_history(path: Path = NALA_HISTORY_PATH) -> list[HistoryTransactio
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return []
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
         LOG.warning("Could not read Nala history at %s: %s", path, error)
         return []
     if not isinstance(data, dict):
@@ -120,7 +121,7 @@ def _read_history_text(path: Path) -> str:
             with gzip.open(path, "rt", encoding="utf-8", errors="replace") as file:
                 return file.read()
         return path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
+    except (OSError, EOFError, zlib.error):
         return ""
 
 
@@ -216,7 +217,12 @@ def load_transaction_history(limit: int | None = 200) -> list[HistoryTransaction
             changes = record["changes"]
         groups = {}
         for change in changes:
-            if not isinstance(change, dict) or not change.get("name"):
+            if (
+                not isinstance(change, dict)
+                or not isinstance(change.get("name"), str)
+                or not change["name"]
+                or not isinstance(change.get("action"), str)
+            ):
                 continue
             action = change.get("action")
             field = {
@@ -243,7 +249,7 @@ def load_transaction_history(limit: int | None = 200) -> list[HistoryTransaction
                 requested_by=record.get("requested_by", "Orbit"),
                 command="orbit " + record["action"],
                 operation=record["action"],
-                altered_count=len(changes),
+                altered_count=sum(map(len, groups.values())),
                 status=record.get("status", "Unknown"),
                 **groups,
             )

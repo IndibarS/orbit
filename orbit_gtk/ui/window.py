@@ -26,9 +26,6 @@ class OrbitWindow(Adw.ApplicationWindow):
         super().__init__(**kwargs)
         self.apt_manager = apt_manager
         self._operation_active = False
-        from orbit_gtk.backend.selection import load_selection
-
-        self._package_selection = load_selection()
         self._downloaded_archives = []
         self._refresh_generation = 0
         self.connect("close-request", self._on_close_request)
@@ -237,7 +234,6 @@ class OrbitWindow(Adw.ApplicationWindow):
             query = " ".join(request.query) if command == "search" else request.query
             if command == "search":
                 browse = self._pages["browse"]
-                browse._mode.set_selected(("text", "glob", "regex").index(request.mode))
                 browse._filter.set_selected(
                     ("all", "installed", "upgradable", "virtual").index(request.filter)
                 )
@@ -309,7 +305,10 @@ class OrbitWindow(Adw.ApplicationWindow):
             "Install local package", self.apt_manager.helper_command("install-local", path)
         )
 
-    def _choose_local_packages(self, _button):
+    def _choose_local_package(self, _button):
+        if self._operation_active:
+            self.show_toast("Finish the current package operation first")
+            return
         chooser = Gtk.FileDialog(
             title=tr("Install local Debian packages"), accept_label=tr("Review packages")
         )
@@ -323,45 +322,24 @@ class OrbitWindow(Adw.ApplicationWindow):
             try:
                 selected = dialog.open_multiple_finish(result)
                 paths = [selected.get_item(i).get_path() for i in range(selected.get_n_items())]
-                if not paths or any(path is None for path in paths):
-                    self.show_toast("Choose downloaded local archives")
+                if not paths:
                     return
-                self.run_privileged(
-                    "Review local packages",
-                    self.apt_manager.helper_command("install-batch", "--paths", *paths),
-                )
-            except GLib.Error as error:
-                if not error.matches(Gtk.dialog_error_quark(), Gtk.DialogError.DISMISSED):
-                    self.show_toast(error.message)
-
-        chooser.open_multiple(self, None, chosen)
-
-    def _choose_local_package(self, _button):
-        if self._operation_active:
-            self.show_toast("Finish the current package operation first")
-            return
-        chooser = Gtk.FileDialog(
-            title=tr("Install local Debian package"), accept_label=tr("Review package")
-        )
-        files = Gtk.FileFilter(name="Debian packages (.deb)")
-        files.add_pattern("*.deb")
-        filters = Gio.ListStore.new(Gtk.FileFilter)
-        filters.append(files)
-        chooser.set_filters(filters)
-
-        def chosen(dialog, result):
-            try:
-                selected = dialog.open_finish(result)
-                path = selected.get_path()
-                if path:
-                    self.install_local(path)
+                if any(path is None for path in paths):
+                    self.show_toast("Download the packages to a local folder first")
+                    return
+                if len(paths) == 1:
+                    self.install_local(paths[0])
                 else:
-                    self.show_toast("Download the package to a local folder first")
+                    self.navigate("browse")
+                    self.run_privileged(
+                        "Review local packages",
+                        self.apt_manager.helper_command("install-batch", "--paths", *paths),
+                    )
             except GLib.Error as error:
                 if not error.matches(Gtk.dialog_error_quark(), Gtk.DialogError.DISMISSED):
                     self.show_toast(f"Could not open the package chooser: {error.message}")
 
-        chooser.open(self, None, chosen)
+        chooser.open_multiple(self, None, chosen)
 
     def focus_search(self) -> None:
         key = self._stack.get_visible_child_name()
@@ -492,11 +470,6 @@ class OrbitWindow(Adw.ApplicationWindow):
         from orbit_gtk.ui.package_dialog import PackageDialog
 
         def act(action, options=None):
-            if action.startswith("queue:"):
-                self._package_selection[package.full_name or package.name] = action.split(":", 1)[1]
-                self.save_selection()
-                self.show_toast("Added to selected package changes")
-                return
             self.run_privileged(
                 f"Review {action} · {package.name}",
                 self.apt_manager.helper_command(
@@ -512,19 +485,6 @@ class OrbitWindow(Adw.ApplicationWindow):
             on_related=lambda name: self.show_package_details(PackageInfo(name=name)),
         ).present(self)
         return False
-
-    def save_selection(self):
-        from orbit_gtk.backend.selection import save_selection
-
-        try:
-            save_selection(self._package_selection)
-        except OSError as error:
-            self.show_toast(f"Could not save the pending selection: {error}")
-
-    def show_selection(self, _button=None):
-        from orbit_gtk.ui.selection import PackageSelection
-
-        PackageSelection(self).present(self)
 
     def show_toast(self, message: str) -> None:
         self._toasts.add_toast(Adw.Toast(title=message))

@@ -63,12 +63,22 @@ def read_records(directory=DIRECTORY):
     for path in directory.glob("*.json"):
         try:
             value = json.loads(path.read_text())
-            if isinstance(value, dict) and isinstance(value.get("changes"), list):
+            if (
+                isinstance(value, dict)
+                and isinstance(value.get("changes"), list)
+                and all(
+                    isinstance(value.get(key), str) and value[key]
+                    for key in ("id", "date", "action")
+                )
+                and isinstance(value.get("status", "Unknown"), str)
+                and isinstance(value.get("requested_by", "Orbit"), str)
+            ):
                 if value.get("status") == "Started":
                     try:
-                        os.kill(int(value.get("pid", -1)), 0) if int(
-                            value.get("pid", -1)
-                        ) > 0 else (_ for _ in ()).throw(ProcessLookupError())
+                        pid = int(value.get("pid", -1))
+                        if pid <= 0:
+                            raise ProcessLookupError()
+                        os.kill(pid, 0)
                     except ProcessLookupError:
                         value["status"] = "Interrupted"
                     except PermissionError:
@@ -76,6 +86,6 @@ def read_records(directory=DIRECTORY):
                     else:
                         value["status"] = "Running"
                 records.append(value)
-        except (OSError, ValueError):
+        except (OSError, ValueError, TypeError):
             continue
     return records

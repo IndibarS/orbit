@@ -7,6 +7,7 @@ from pathlib import Path
 from gi.repository import Adw, Gdk, GLib, Gtk
 
 _STATUS_STYLE = None
+_EXPANDER_STYLE = None
 
 
 def status_chip(text: str, color: str) -> Gtk.Label:
@@ -37,7 +38,29 @@ def action_row(*, title: str = "", subtitle: str = "", **properties) -> Adw.Acti
 
 
 def expander_row(*, title: str = "", subtitle: str = "", **properties) -> Adw.ExpanderRow:
+    global _EXPANDER_STYLE
+    if _EXPANDER_STYLE is None:
+        _EXPANDER_STYLE = Gtk.CssProvider()
+        # Adwaita's descendant selector also rotates collapsed nested arrows.
+        # Target only the header belonging to this expander, preserving animation.
+        header = "row.orbit-expander > box > list > row.header image.expander-row-arrow"
+        expanded = "row.orbit-expander:checked > box > list > row.header image.expander-row-arrow"
+        _EXPANDER_STYLE.load_from_string(
+            f"{header} {{ -gtk-icon-transform: rotate(0.5turn); color: inherit; }}"
+            f"{header}:dir(rtl) {{ -gtk-icon-transform: rotate(-0.5turn); }}"
+            f"{expanded} {{ -gtk-icon-transform: rotate(0turn); }}"
+            "row.history-transaction > box > revealer > list.nested, "
+            "row.history-branch > box > revealer > list.nested { "
+            "margin: 0 12px 12px 20px; padding-left: 10px; "
+            "border-left: 2px solid alpha(currentColor, 0.22); background: transparent; }"
+            "row.history-transaction > box > list > row.header .title { font-weight: 700; }"
+            "row.history-branch > box > list > row.header .title { font-weight: 600; }"
+        )
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), _EXPANDER_STYLE, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
     row = Adw.ExpanderRow(**properties)
+    row.add_css_class("orbit-expander")
     row.set_use_markup(False)
     row.set_title(title)
     row.set_subtitle(subtitle)

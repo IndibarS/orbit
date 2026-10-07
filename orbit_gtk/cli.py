@@ -43,7 +43,6 @@ def parse_command(arguments, cwd=None):
         item.set_defaults(command="show")
     search = commands.add_parser("search")
     search.add_argument("query", nargs="+")
-    search.add_argument("--mode", choices=("text", "glob", "regex"), default="text")
     search.add_argument("--names", action="store_true")
     search.add_argument(
         "--filter", choices=("all", "installed", "upgradable", "virtual"), default="all"

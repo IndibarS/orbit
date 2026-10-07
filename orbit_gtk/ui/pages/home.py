@@ -65,7 +65,7 @@ class HomePage(Gtk.ScrolledWindow):
 
         local_row = action_row(
             title=tr("Install a downloaded package"),
-            subtitle=tr("Choose a .deb file and review installation"),
+            subtitle=tr("Choose one or more .deb files and review installation"),
         )
         local_row.set_activatable(True)
         local_row.add_prefix(Gtk.Image(icon_name="package-x-generic-symbolic"))
@@ -93,13 +93,6 @@ class HomePage(Gtk.ScrolledWindow):
         cleanup_row.connect("activated", self._on_clean_cache)
         act_group.add(cleanup_row)
 
-        selected = action_row(
-            title=tr("Selected package changes"),
-            subtitle=tr("Review or discard the packages collected while browsing"),
-        )
-        selected.set_activatable(True)
-        selected.connect("activated", self.window.show_selection)
-        act_group.add(selected)
         advanced = action_row(
             title=tr("Plan package changes"),
             subtitle=tr("Batch packages, choose versions, download only, or repair dependencies"),

@@ -488,6 +488,26 @@ class MirrorTests(unittest.TestCase):
 
 
 class HistoryTests(unittest.TestCase):
+    def test_truncated_compressed_history_is_ignored(self):
+        import gzip
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "history.log.1.gz"
+            path.write_bytes(gzip.compress(b"Start-Date: 2026-01-01  10:00:00\n")[:-6])
+            self.assertEqual(_load_apt_history((path,)), [])
+
+    def test_incomplete_and_failed_apt_transactions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "history.log"
+            path.write_text(
+                "Start-Date: 2026-01-01  10:00:00\nInstall: sample (1)\n"
+                "Error: interrupted\nEnd-Date: 2026-01-01  10:01:00\n"
+                "Start-Date: 2026-01-01  11:00:00\nInstall: pending (1)\n"
+            )
+            records = _load_apt_history((path,))
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0].status, "Failed")
+
     def test_apt_versions_and_purge(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "history.log"
@@ -568,6 +588,10 @@ class RealCacheTests(unittest.TestCase):
         matches = cache.search("bash", limit=5)
         self.assertLessEqual(len(matches), 5)
         self.assertEqual(matches[0].name, "bash")
+        typo_matches = cache.search("bsah", limit=5, options={"names_only": True})
+        self.assertIn("bash", [package.name for package in typo_matches])
+        for query in ("b*h", "?a*", "[a-z]a?h"):
+            self.assertIn("bash", [p.name for p in cache.search(query, limit=10000)])
         self.assertEqual(cache.search(""), [])
         self.assertEqual(cache.search("bash", cancelled=lambda: True), [])
         # Descriptions must remain searchable when index traversal order changes.

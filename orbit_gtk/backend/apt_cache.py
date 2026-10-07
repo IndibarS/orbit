@@ -109,26 +109,10 @@ class OrbitAptCache:
     ) -> list[PackageInfo]:
         """Find real packages by name, summary, or description with deterministic ranking."""
         options = options or {}
-        mode = options.get("mode", "text")
-        pattern = None
-        if mode == "regex":
-            import regex
+        from orbit_gtk.backend.search import SmartSearch
 
-            if len(query) > 256:
-                raise ValueError("Regular expression is too long")
-            pattern = regex.compile(query, regex.IGNORECASE)
-        if mode == "glob":
-            from fnmatch import fnmatchcase
-
-        def matches(text):
-            if pattern is not None:
-                return bool(pattern.search(text, timeout=0.01))
-            if mode == "glob":
-                return fnmatchcase(text.casefold(), normalized)
-            return normalized in text.casefold()
-
-        normalized = query.strip().casefold()
-        if not normalized:
+        matcher = SmartSearch(query)
+        if not matcher.terms:
             return []
         with self._lock:
             cache = self._require_cache()
@@ -147,8 +131,8 @@ class OrbitAptCache:
                     continue
                 version = package.candidate or package.installed
                 if version is None:
-                    if options.get("virtual") and matches(package.name):
-                        found.append((0, package.name, package))
+                    if options.get("virtual") and (match := matcher.name_match(package.name)):
+                        found.append((match[0], package.name, package))
                     continue
                 if options.get("virtual"):
                     continue
@@ -165,20 +149,23 @@ class OrbitAptCache:
                 if version is None:
                     continue
                 name = package.name.casefold()
-                if normalized == name:
-                    rank = 0
-                elif name.startswith(normalized):
-                    rank = 1
-                elif matches(name):
-                    rank = 2
-                elif not options.get("names_only") and matches(version.summary or ""):
-                    rank = 3
-                elif not options.get("names_only") and matches(version.description or ""):
-                    rank = 4
+                match = matcher.name_match(name)
+                if match is not None:
+                    rank = match[0]
+                elif matcher.pattern is not None:
+                    continue
+                elif not options.get("names_only") and matcher.matches_text(version.summary or ""):
+                    rank = 5
+                elif not options.get("names_only") and matcher.matches_text(
+                    version.description or ""
+                ):
+                    rank = 6
                 else:
                     continue
                 found.append((rank, name, package))
-            best = nsmallest(max(0, limit), found, key=lambda item: item[:2])
+            best = nsmallest(
+                max(0, limit), found, key=lambda item: (item[0], len(item[1]), item[1])
+            )
             return [
                 self._package_info(package)
                 if self._is_real_package(package)

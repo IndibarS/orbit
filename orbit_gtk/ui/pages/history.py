@@ -55,7 +55,7 @@ class HistoryPage(Gtk.Box):
         generation = self._generation
         self._show_loading()
         threading.Thread(
-            target=self._fetch, args=(generation,), name="orbit-history", daemon=True
+            target=self._fetch, args=(generation, self._limit), name="orbit-history", daemon=True
         ).start()
 
     def invalidate(self) -> bool:
@@ -72,8 +72,25 @@ class HistoryPage(Gtk.Box):
         self._group.add(row)
         self._rows.append(row)
 
-    def _fetch(self, generation: int) -> None:
-        GLib.idle_add(self._apply, generation, self.apt_manager.get_history(self._limit))
+    def _fetch(self, generation: int, limit: int) -> None:
+        try:
+            transactions = self.apt_manager.get_history(limit)
+        except Exception as error:
+            GLib.idle_add(self._show_error, generation, str(error) or type(error).__name__)
+        else:
+            GLib.idle_add(self._apply, generation, transactions)
+
+    def _show_error(self, generation: int, message: str) -> bool:
+        if generation != self._generation:
+            return False
+        self._clear_rows()
+        row = action_row(title=tr("History unavailable"), subtitle=message)
+        retry = Gtk.Button(label=tr("Retry"), valign=Gtk.Align.CENTER)
+        retry.connect("clicked", lambda _: self.invalidate())
+        row.add_suffix(retry)
+        self._group.add(row)
+        self._rows.append(row)
+        return False
 
     def _apply(self, generation: int, transactions: list[HistoryTransaction]) -> bool:
         if generation != self._generation:
@@ -82,7 +99,7 @@ class HistoryPage(Gtk.Box):
         if not transactions:
             row = action_row(
                 title=tr("No transaction history found"),
-                subtitle=tr("Nala and APT history logs are empty or unavailable."),
+                subtitle=tr("Orbit, Nala and APT history logs are empty or unavailable."),
             )
             row.add_prefix(Gtk.Image.new_from_icon_name("document-open-recent-symbolic"))
             self._group.add(row)
@@ -115,8 +132,13 @@ class HistoryPage(Gtk.Box):
     def _make_row(self, transaction: HistoryTransaction) -> Adw.ExpanderRow:
         row = expander_row(
             title=f"{transaction.operation.capitalize()} · {transaction.date}",
-            subtitle=f"{transaction.altered_count} package{'s' if transaction.altered_count != 1 else ''}",
+            subtitle=(
+                f"{transaction.altered_count} package{'s' if transaction.altered_count != 1 else ''}"
+                if transaction.status in {"Completed", "Recorded"}
+                else f"{transaction.altered_count} requested package changes"
+            ),
         )
+        row.add_css_class("history-transaction")
         _, icon_name, color, _ = _ACTIONS.get(
             transaction.operation,
             (
@@ -136,7 +158,7 @@ class HistoryPage(Gtk.Box):
             if transaction.status == "Failed"
             else "success"
             if transaction.status == "Completed"
-            else "dim-label"
+            else "warning"
         )
         row.add_suffix(status_chip(transaction.status, status_color))
         populated = False
@@ -162,17 +184,25 @@ class HistoryPage(Gtk.Box):
                 for key, values in _ACTIONS.items()
                 if getattr(transaction, values[3])
             ]
-            for _key, label, _icon, color, _field, packages in groups:
-                summary.insert(status_chip(f"{len(packages)} {label.lower()}", color), -1)
+            for key, label, _icon, color, _field, packages in groups:
+                text = (
+                    label.lower()
+                    if transaction.status in {"Completed", "Recorded"}
+                    else f"{key} requests"
+                )
+                summary.insert(status_chip(f"{len(packages)} {text}", color), -1)
             if groups:
                 row.add_row(summary)
             else:
                 row.add_row(action_row(title=tr("No package-level changes recorded")))
             for index, (key, label, icon_name, color, _field, packages) in enumerate(groups):
                 group = expander_row(
-                    title=label,
+                    title=label
+                    if transaction.status in {"Completed", "Recorded"}
+                    else f"{key.capitalize()} requests",
                     subtitle=f"{len(packages)} package{'s' if len(packages) != 1 else ''}",
                 )
+                group.add_css_class("history-branch")
                 icon = Gtk.Image(icon_name=icon_name)
                 icon.add_css_class(color)
                 group.add_prefix(icon)
@@ -182,6 +212,7 @@ class HistoryPage(Gtk.Box):
             details = expander_row(
                 title=tr("Transaction details"), subtitle=tr("Command and requested user")
             )
+            details.add_css_class("history-branch")
             details.add_row(
                 action_row(
                     title=tr("Command"), subtitle=transaction.command, subtitle_selectable=True
@@ -202,8 +233,18 @@ class HistoryPage(Gtk.Box):
                         "Undo restores package versions where available; it cannot restore deleted configuration or personal data."
                     ),
                 )
-                for undo, label in ((False, "Redo"), (True, "Undo")):
-                    button = Gtk.Button(label=label, valign=Gtk.Align.CENTER)
+                for undo in (True, False):
+                    description = tr(
+                        "Undo: review restoring the previous package versions. Deleted configuration cannot be restored."
+                        if undo
+                        else "Redo: review applying these package changes again."
+                    )
+                    button = Gtk.Button(
+                        icon_name="edit-undo-symbolic" if undo else "edit-redo-symbolic",
+                        valign=Gtk.Align.CENTER,
+                    )
+                    button.set_tooltip_text(description)
+                    button.update_property([Gtk.AccessibleProperty.LABEL], [description])
                     button.connect(
                         "clicked", lambda _, reverse=undo: self._replay(transaction, reverse)
                     )

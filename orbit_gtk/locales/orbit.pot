@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Orbit\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 16:46+0530\n"
+"POT-Creation-Date: 2026-10-07 22:21+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,117 +17,90 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:29
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:28
 msgid "Package actions"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:33
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:32
 msgid "Held by APT"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:34
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:33
 msgid "Release the APT hold before changing this package."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:62
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:61
 msgid "Purge configuration files"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:64
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:63
 msgid "Also remove package-managed system configuration files."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:89
-msgid "Select"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:90
-msgid "Add to the package selection for a combined review"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:124
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:109
 msgid "Packages providing this capability"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:128
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:113
 msgid "Details"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:135
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:120
 msgid "Available versions and APT policy"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:136
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:122
 msgid ""
 "Higher pin priority influences APT’s candidate selection. Selecting an older "
 "version requests a reviewed downgrade."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:146
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:61
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:70
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:133
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:62
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:71
 msgid "Review"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:158
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:145
 msgid "Dependencies and related packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:162
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:149
 msgid "Description"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:174
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:161
 msgid "Project website"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:38
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:37
 msgid "Screenshots"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:50
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:49
 msgid "Screenshot unavailable"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:53
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:52
 msgid "Check your connection and try again. Package details remain available."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:57
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:44
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:50
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:56
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:43
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:49
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:88
 msgid "Retry"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:71
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:70
 msgid "Previous screenshot"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:75
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/screenshots.py:74
 msgid "Next screenshot"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/selection.py:13
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:98
-msgid "Selected package changes"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/selection.py:20
-msgid ""
-"Selections are requests, not an installation plan. APT will resolve the "
-"current dependencies before you approve."
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/selection.py:25
-msgid "Discard"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/selection.py:34
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:78
-msgid "Resolve and review"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:16
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:15
 msgid "Download a Debian package"
 msgstr ""
 
@@ -137,32 +110,32 @@ msgid ""
 "installation; repository signatures do not authenticate it."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:26
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:27
 msgid "Package URL"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:29
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:30
 msgid "Expected SHA256 · optional"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:36
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:37
 msgid "Download and review"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:39
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:40
 msgid "Cancel download"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:71
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:72
 msgid "SHA256 must contain 64 hexadecimal characters"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:76
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/archive_download.py:77
 msgid "Downloading…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:12
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:105
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:11
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:97
 msgid "Plan package changes"
 msgstr ""
 
@@ -172,33 +145,37 @@ msgid ""
 "before applying."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:35
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:36
 msgid "Operation"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:40
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:41
 msgid "Packages · space-separated; name=version supported"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:43
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:44
 msgid "Exclude from upgrade · space-separated patterns"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:45
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:46
 msgid "Target release · optional configured suite"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:66
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:67
 msgid "Modified system configuration files"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:67
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:69
 msgid ""
 "Services may restart after installation. Enable questions above for "
 "interactive package setup."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:100
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:81
+msgid "Resolve and review"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_options.py:103
 msgid "Enter at least one package."
 msgstr ""
 
@@ -214,45 +191,37 @@ msgstr ""
 msgid "Continue"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:34
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:80
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:32
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:78
 msgid "Orbit Package Manager"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:52
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:50
 msgid "Orbit"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:85
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:84
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:83
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:85
 msgid "Refresh package lists"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:302
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:313
 msgid "Install local Debian packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:302
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:313
 msgid "Review packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:332
-msgid "Install local Debian package"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/window.py:332
-msgid "Review package"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:60
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:59
 msgid "Authenticating…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:64
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:63
 msgid "Waiting for administrator authorization"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:83
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:82
 msgid "Technical details"
 msgstr ""
 
@@ -272,82 +241,82 @@ msgstr ""
 msgid "The operation is no longer waiting for an answer."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:264
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:265
 msgid ""
 "Modified system configuration files will be replaced by package versions. "
 "Services may restart."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:268
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:270
 msgid ""
 "Download only: packages will be cached, not installed, removed or configured."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:277
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:279
 msgid "Review package changes"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:281
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:284
 msgid "Nothing will be installed or removed until you apply this plan."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:284
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:289
 msgid ""
 "This plan removes packages. Review the Remove and Purge actions before "
 "applying."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:287
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:293
 msgid "Waiting for your review"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:297
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:303
 msgid "Review package downloads"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:299
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:305
 msgid ""
 "Only archives will be fetched. Listed package changes will not be applied."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:320
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:326
 msgid "Please keep Orbit open while package changes are applied."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:353
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:357
 msgid "Cancelled"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:361
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/operation_view.py:365
 msgid "Operation failed"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_plan.py:42
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_plan.py:41
 msgid "Find a package in this plan…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_plan.py:47
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/transaction_plan.py:46
 msgid "Filter changes by action"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:33
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:32
 msgid "Space to Reclaim"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:36
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:101
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:35
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:102
 msgid "Calculating…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:51
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:50
 msgid "Items"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:56
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:55
 msgid "Unused dependencies"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:58
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:57
 msgid "Review packages no longer needed"
 msgstr ""
 
@@ -357,24 +326,24 @@ msgid ""
 "configuration files are kept."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:69
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:70
 msgid "Review every package before applying."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:86
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:167
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:87
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:168
 msgid "Clean Selected Items"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:127
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:128
 msgid "Could not calculate cleanup space"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:162
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:163
 msgid "Nothing to clean"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:163
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:164
 msgid "Your system cache is already clean"
 msgstr ""
 
@@ -382,156 +351,162 @@ msgstr ""
 msgid "Filter installed packages…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:57
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:58
 msgid "Loading installed packages…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:60
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:61
 msgid "Could not load packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:62
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:96
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:63
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:99
 msgid "Retry loading"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:67
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:68
 msgid "No matching packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:120
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:121
 msgid "Package data unavailable"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:164
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/installed.py:165
 msgid "Try a different package name or summary."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:26
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:25
 msgid "Package state needs attention"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:28
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:27
 msgid "Checking package state…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:32
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:31
 msgid "Review repair"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:39
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:38
 msgid "System"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:49
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:48
 msgid "Packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:64
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:63
 msgid "Quick Actions"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:68
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:57
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:67
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:58
 msgid "Install a downloaded package"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:69
-msgid "Choose a .deb file and review installation"
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:68
+msgid "Choose one or more .deb files and review installation"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:78
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:77
 msgid "Upgrade All Packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:79
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:78
 msgid "Apply all pending system upgrades"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:88
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:87
 msgid "Clean Package Cache"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:89
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:88
 msgid "Remove downloaded .deb files from cache"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:99
-msgid "Review or discard the packages collected while browsing"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:106
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:98
 msgid "Batch packages, choose versions, download only, or repair dependencies"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:113
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:105
 msgid "Repair interrupted installation"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:114
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:106
 msgid "Finish configuring packages after an interrupted transaction"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:146
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:138
 msgid "Loading…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:216
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:208
 msgid "Refresh package lists to check repositories for new updates."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:221
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/home.py:213
 msgid "Could not check package state"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:42
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:41
 msgid "Transactions"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:42
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:41
 msgid "Changes recorded by Orbit, Nala and APT"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:69
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:68
 msgid "Loading transaction history…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:85
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:87
+msgid "History unavailable"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:101
 msgid "No transaction history found"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:86
-msgid "Nala and APT history logs are empty or unavailable."
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:102
+msgid "Orbit, Nala and APT history logs are empty or unavailable."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:171
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:197
 msgid "No package-level changes recorded"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:184
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:213
 msgid "Transaction details"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:184
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:213
 msgid "Command and requested user"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:187
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:218
 msgid "Command"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:191
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:223
 msgid "Requested by"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:199
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:231
 msgid "Review historical package changes"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:200
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:233
 msgid ""
 "Undo restores package versions where available; it cannot restore deleted "
 "configuration or personal data."
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/history.py:238
+msgid ""
+"Undo: review restoring the previous package versions. Deleted configuration "
+"cannot be restored."
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:31
@@ -539,23 +514,23 @@ msgid "Search packages…"
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:34
-msgid "Selected changes"
+msgid ""
+"Search names and descriptions, including close spellings. Name patterns: * "
+"matches any letters, ? matches one, [a-z] matches a range."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:45
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:47
 msgid "Names only"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:58
-msgid "Choose a local .deb file, then review the package and its dependencies."
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:60
+msgid ""
+"Choose one or more local .deb files, then review the packages and their "
+"dependencies."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:61
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:64
 msgid "Browse"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:67
-msgid "Multiple…"
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:70
@@ -563,66 +538,72 @@ msgid "From URL…"
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:82
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:153
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:158
 msgid "Type at least 2 characters"
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:92
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:149
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:154
 msgid "Search packages"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:93
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:151
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:94
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:156
 msgid ""
 "Search package names, summaries, and descriptions in the local APT cache."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:96
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:99
 msgid "Search unavailable"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:97
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:101
 msgid "Retry search"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:104
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:108
 msgid "Searching package data…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:156
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:161
 msgid "Searching…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:202
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:206
 msgid "Search failed"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:213
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:217
 msgid "No packages found"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:214
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:223
+msgid ""
+"Package names do not contain slashes. Use * for any characters; for example, "
+"*d finds names ending in d."
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:232
 msgid "Try a shorter or different search term."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:235
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:257
 msgid "Providers"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:238
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:260
 msgid "Installed"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:241
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:263
 msgid "This package is already installed"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:243
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/browse.py:265
 msgid "Install"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:34
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:33
 msgid "Upgrade options"
 msgstr ""
 
@@ -633,43 +614,43 @@ msgid ""
 "Your configured release and sources stay the same."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:57
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:58
 msgid "Review full upgrade"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:78
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:79
 msgid "Loading updates…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:82
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:83
 msgid "No cached upgrades"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:89
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:91
 msgid ""
 "No upgrades are available in the cached package lists. Refresh to check "
 "repositories."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:94
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:97
 msgid "Could not load updates"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:195
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:198
 msgid ""
 "Download progress is measured; installation pulses until APT confirms "
 "completion."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:206
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:209
 msgid "Kept back"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:329
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:332
 msgid "APT excluded this package from the reviewed upgrade."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:62
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:61
 msgid "Mirror selection unavailable"
 msgstr ""
 
@@ -681,124 +662,132 @@ msgid ""
 "serve package operations."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:76
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:69
+msgid "Choose a catalogue manually"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:86
 msgid "Configured mirrors"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:77
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:88
 msgid ""
 "Save selected mirrors to Orbit’s source file. Existing sources are "
 "preserved; refresh package lists separately."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:80
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:92
 msgid "Repository"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:81
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:94
 msgid ""
 "Benchmark and select mirrors for one archive and suite at a time. Security "
 "sources remain unchanged."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:83
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:97
 msgid "Archive and suite"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:87
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:101
 msgid "HTTPS only"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:87
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:101
 msgid "Do not fall back to unencrypted HTTP"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:89
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:103
 msgid "Country codes · optional, e.g. DE FR"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:93
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:107
 msgid "Advanced repository settings"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:94
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:109
 msgid ""
 "Optional overrides affect Orbit sources only. A different suite changes "
 "available package versions."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:96
-msgid "Suite override · leave empty to preserve"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:98
-msgid "Components · space-separated; empty preserves"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:100
-msgid "Include source-package repositories"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:108
-msgid "Benchmark mirrors"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:112
-msgid "Clear selection"
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:113
+msgid "Catalogue override"
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:119
+msgid "Suite override · leave empty to preserve"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:121
+msgid "Components · space-separated; empty preserves"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:123
+msgid "Include source-package repositories"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:131
+msgid "Benchmark mirrors"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:135
+msgid "Clear selection"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:142
 msgid "Benchmark results"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:120
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:144
 msgid ""
 "Results are sorted by the measured time to fetch the active suite's Release "
 "file."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:129
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:154
 msgid "Use best 3"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:152
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:177
 msgid "Number of fastest mirrors"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:154
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:179
 msgid "Use fastest"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:157
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:182
 msgid "Apply selection"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:267
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:292
 msgid "No mirrors configured for the active suite"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:279
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:305
 msgid ""
 "Enabled in APT sources for the active suite. Package lists are refreshed "
 "separately."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:283
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:310
 msgid "Remove"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:332
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:368
 msgid "Downloading mirror catalogue…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:406
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:442
 msgid "Use"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:413
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:449
 msgid "Include this mirror in the selection"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:489
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:525
 msgid "Save custom repository settings?"
 msgstr ""

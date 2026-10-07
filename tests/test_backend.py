@@ -568,6 +568,9 @@ class RealCacheTests(unittest.TestCase):
         self.assertLessEqual(len(matches), 5)
         self.assertEqual(matches[0].name, "bash")
         self.assertEqual(cache.search(""), [])
+        self.assertEqual(cache.search("bash", cancelled=lambda: True), [])
+        # Descriptions must remain searchable when index traversal order changes.
+        self.assertIn("bash", [item.name for item in cache.search("bourne again")])
 
     def test_real_resolver_plan_never_removes_essential_package(self):
         with apt.Cache() as cache:

@@ -234,11 +234,15 @@ def _source_paths() -> Iterable[Path]:
         return
 
 
+class UnsupportedMirrorDistribution(ValueError):
+    """The system's repositories are outside the Debian mirror catalogue."""
+
+
 def source_settings() -> SourceSettings:
     """Infer the active Debian suite/components without mutating user sources."""
     identity = platform.freedesktop_os_release()
     if identity.get("ID") != "debian":
-        raise ValueError("Mirror selection currently supports Debian only.")
+        raise UnsupportedMirrorDistribution("Mirror selection currently supports Debian only.")
     for path in _source_paths():
         for fields in iter_deb822_sources(path):
             if "deb" not in fields.get("types", "deb").split():

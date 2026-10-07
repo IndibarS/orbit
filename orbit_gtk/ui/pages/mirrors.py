@@ -9,7 +9,12 @@ from gi.repository import Adw, Gio, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.mirror_benchmark import MirrorBenchmarkWorker, get_flag_for_mirror
-from orbit_gtk.backend.mirrors import existing_mirror_urls, flag, source_settings
+from orbit_gtk.backend.mirrors import (
+    UnsupportedMirrorDistribution,
+    existing_mirror_urls,
+    flag,
+    source_settings,
+)
 from orbit_gtk.backend.models import MirrorInfo
 from orbit_gtk.ui.operation_view import OperationView
 from orbit_gtk.ui.widgets import action_row
@@ -47,7 +52,16 @@ class MirrorsPage(Gtk.Box):
         self._progress.set_margin_bottom(6)
         self.append(self._progress)
 
+        self._unsupported = Adw.StatusPage(
+            title="Debian mirror selection unavailable",
+            icon_name="network-server-symbolic",
+            description="This distribution uses its own repositories. Manage mirrors with its repository settings tool; Orbit's package operations still use your configured APT sources.",
+            visible=False,
+            vexpand=True,
+        )
+        self.append(self._unsupported)
         scroll = Gtk.ScrolledWindow(vexpand=True)
+        self._content_scroll = scroll
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.append(scroll)
         page = Adw.PreferencesPage()
@@ -123,10 +137,21 @@ class MirrorsPage(Gtk.Box):
         try:
             mirrors = self.apt_manager.get_orbit_mirrors()
             existing = existing_mirror_urls(source_settings().suite)
+        except UnsupportedMirrorDistribution:
+            GLib.idle_add(self._show_unsupported)
+            return
         except (OSError, ValueError) as error:
             GLib.idle_add(self._load_failed, generation, str(error))
             return
         GLib.idle_add(self._show_active, mirrors, existing, generation)
+
+    def _show_unsupported(self):
+        self._unsupported.set_visible(True)
+        self._content_scroll.set_visible(False)
+        self._banner.set_revealed(False)
+        self._progress.set_visible(False)
+        self._loaded = True
+        return False
 
     def _load_failed(self, generation: int, message: str) -> bool:
         if generation == self._load_generation:
@@ -217,6 +242,9 @@ class MirrorsPage(Gtk.Box):
         self._banner.set_revealed(True)
         try:
             suite = source_settings().suite
+        except UnsupportedMirrorDistribution:
+            self._show_unsupported()
+            return
         except ValueError as error:
             self._finish_benchmark(str(error))
             return

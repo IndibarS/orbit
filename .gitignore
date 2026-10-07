@@ -8,3 +8,8 @@ dist/
 .aider*
 # Local upstream reference, not an Orbit runtime dependency.
 nala/
+# Disposable cross-distribution test logs, reports, and build outputs.
+.artifacts/
+.coverage
+.coverage.*
+htmlcov/

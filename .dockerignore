@@ -1,0 +1,17 @@
+# Only ship the application and test inputs into Docker build contexts.
+**
+!orbit_gtk/
+!orbit_gtk/**/*.py
+!packaging/
+!packaging/**
+!tools/
+!tools/**/*.py
+!tests/
+!tests/**/*.py
+!tests/docker/
+!tests/docker/**
+!pyproject.toml
+!uv.lock
+!README.md
+!setup.sh
+!run

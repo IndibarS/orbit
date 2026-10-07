@@ -1,6 +1,6 @@
 # Feature coverage and acceptance backlog
 
-Reviewed 24 September 2026. This is a concrete backlog, not a claim that Orbit
+Reviewed 7 October 2026 after the five-target Docker matrix. This is a concrete backlog, not a claim that Orbit
 already surpasses every package manager. Feature presence alone is insufficient:
 each new workflow needs dependency review, clear progress and recovery tests.
 
@@ -25,7 +25,7 @@ each new workflow needs dependency review, clear progress and recovery tests.
 | Per-package progress | Inline download, unpacking and configuration status | Recovery after abrupt GUI termination |
 | Unused dependency removal | Reviewed and isolated dpkg tested | Broader dependency graph fixtures |
 | Weak/offline connections | APT retry/timeout defaults, explicit failures, cached browsing, capped metadata transfers; fault tests | Wider proxy, DNS, captive-portal and intermittent-connectivity acceptance |
-| Mirror discovery and source ownership | Implemented, existing sources preserved | Cross-release source layouts |
+| Mirror discovery and source ownership | Debian-only catalogue; Orbit-owned file; existing sources preserved; clear derivative limitation | More source layouts and live mirror acceptance |
 | History | APT/Nala parsing, action chips and lazy grouped rows | Replay/undo with availability and reversal checks |
 | Application icons/screenshots | AppStream metadata, optional fallback | More distro catalogues and image formats |
 | Package holds and version selection | Holds displayed/respected; editing absent | Reviewed state changes and version/hold persistence tests |
@@ -37,7 +37,10 @@ each new workflow needs dependency review, clear progress and recovery tests.
 | Offline updates and restart recovery | Absent | Durable transaction/service lifecycle and recovery protocol |
 | Configuration choices | Keeps local conffiles | Diff/choice UI and debconf integration without blocking GTK |
 | Flatpak/Snap/other stores | Absent | Separate native backend contracts, source identity and permissions |
-| Release packaging | Local .deb, root-owned paths, scoped policy | Real Polkit-agent acceptance, distro matrix and release metadata |
+| Distribution identity | Sid/trixie derived from enabled Debian sources, including `.pgp` keys; derivatives retain OS identity | More mixed/vendor source layouts |
+| Distro compatibility | Eight stages passed on Debian 13, Sid, Ubuntu 24.04, Mint 22.3 and Kali Rolling | Real desktop/Wayland/Polkit acceptance and older-release requirements |
+| Search | Ranked names/descriptions; compressed indexes read in record order; 200-result ceiling | More hardware, catalogue and memory measurements |
+| Release packaging | Local .deb, root-owned paths, scoped policy; build/install/CLI passed across five Docker targets | Real Polkit-agent acceptance, release metadata and licensing review |
 
 ## Order of work
 
@@ -49,3 +52,7 @@ each new workflow needs dependency review, clear progress and recovery tests.
 Do not add inactive controls for unimplemented features. Keep application discovery,
 package maintenance and transaction review distinct and clearly named. Color must
 always accompany text labels, never replace them.
+
+See [DISTRO-TESTING.md](DISTRO-TESTING.md) for exact runtime versions, image
+qualifications and skipped artwork coverage. Passing container checks does not
+complete the desktop acceptance backlog or establish feature parity.

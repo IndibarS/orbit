@@ -21,7 +21,7 @@ def debian_suites(
         # A vendor may also serve /debian. Its explicitly separate signing key
         # must not turn e.g. a Sid system into a mixed Sid/stable system.
         if signed_by and not any(
-            Path(key).name.startswith("debian-archive-") and key.endswith((".gpg", ".asc"))
+            Path(key).name.startswith("debian-archive-") and key.endswith((".gpg", ".asc", ".pgp"))
             for key in signed_by.replace(",", " ").split()
         ):
             return

@@ -1,135 +1,121 @@
 # Validation and engineering assessment
 
-Assessment date: 2026-09-23. Environment: Debian forky/sid, system Python 3.14.7,
-python-apt, GTK4 and libadwaita 1.9. GUI checks use Xvfb with software rendering.
+Updated 7 October 2026. The current evidence is the completed
+[five-target Docker matrix](DISTRO-TESTING.md), covering Debian 13, Debian Sid,
+Ubuntu 24.04, Linux Mint 22.3 and Kali Rolling. All eight stages passed on every
+target. Exact runtime versions, image qualifications and reproduction instructions
+are recorded in that report.
 
-**Current adversarial release-readiness assessment: 9.0/10.**
-See [the 24 September audit](AUDIT-2026-09-24.md) for fixed issues, test evidence,
-missing features and the weighted rubric. This supersedes the earlier 9.2/10
-rating, which covered a narrower development scope and was too optimistic as a
-release assessment. The historical validation notes below remain useful context.
+The last scored adversarial audit was **9.0/10**, recorded in the
+[September audit](AUDIT-2026-09-24.md). That is a historical engineering judgment,
+not a newly measured score. The new tests resolve several earlier gaps but do
+not justify calling the app flawless or claiming feature parity with every other
+package manager. The [feature backlog](FEATURE-COVERAGE.md) distinguishes
+implemented workflows from remaining acceptance work.
 
-## Earlier validation (23 September)
+## Current validation
 
-Initial checks: **27 backend tests and 8 GTK integration tests passed**, plus the
-real isolated transaction/helper lifecycle. Ruff lint/format checks, shell syntax,
-`git diff --check`, and uv source/wheel builds passed. Screenshots of the actual
-Updates page and the isolated inline-progress test were visually inspected.
+- Backend tests cover dependency guards, holds, kept-back packages, progress,
+  history, source validation, system identity, metadata and failure handling.
+- Each distro ran 42 GTK checks under Xvfb: 41 passed and one real-artwork check
+  skipped because GIMP's AppStream artwork was absent. Missing artwork is not
+  counted as a verified catalogue integration.
+- Single-instance command forwarding was tested in isolated D-Bus sessions.
+  System-changing dispatch is intercepted in that IPC test; actual package
+  changes are tested separately in temporary APT/dpkg roots.
+- Six explicit network tests passed per target. Coverage includes bounded reads,
+  stalled/trickling/truncated responses and recovery. Isolated APT tests also
+  verify failed refresh preserves cached data, unavailable archives do not change
+  package files, and a later retry succeeds.
+- Real isolated transactions cover install, normal/full upgrade, remove, purge,
+  reinstall, autoremove, local archives, review cancellation, dependency guards,
+  package-row event identity, and GUI pipe loss before/after approval.
+- Debian package build, installation into disposable containers and the installed
+  command's help output passed on every target. The local `.deb` was rebuilt.
+- Ruff lint/format and diff whitespace checks passed during this work. The
+  documented test runner uses the distro's Python/APT/GI stack through uv.
 
-- Fixed the `orb_gtk` directory versus `orbit_gtk` imports/entry-point mismatch.
-- uv editable installation, wheel and source-distribution builds.
-- Backend regression suite: package validation, dependency guards, transaction
-  approval/cancellation/failure, progress, mirror input validation and duplicate-source filtering,
-  historical formats, thread-local errors, and read-only live APT queries.
-- GTK regression suite: real data pages and search; package details and narrow
-  navigation; inline progress with independent architecture-qualified package
-  identities; real subprocess pipes carrying fragmented UTF-8 events; cancellation,
-  failure states, and the close guard.
-- Real isolated lifecycle: install fixture 1.0, update to 2.0, then remove it.
-  Verified file contents and plans, with actual Unpacking/Configuring/Removing
-  callbacks. Also verified the real privileged helper's cancel/apply handshake,
-  JSON framing, captured native logs, and removal.
-- The application itself uses no fabricated package, history-duration, bandwidth,
-  or mirror-reliability values. Synthetic inputs exist only in regression tests.
+Generic discovery skips opt-in tests, which run explicitly in later stages.
+Counts from September describe older suites and should not be combined with
+current counts. No host package database or APT sources were modified by the
+matrix; test containers were removed, and their images remain cached.
+
+## Fixes verified by the distro tests
+
+- **Compressed-index search:** alphabetical traversal caused repeated backward
+  seeks through APT's compressed package indexes. Description records now load
+  in file order, followed by the same result ranking. Cancellation and description
+  matching retain regression coverage.
+- **Debian identity:** `.pgp` archive keyrings are recognized alongside `.gpg`
+  and `.asc`. Real Sid and trixie images now display the configured Debian suite;
+  derivatives retain their own OS identity. Vendor-key exclusions remain tested.
+- **Derivative mirrors:** unsupported Debian mirror selection now has a clear
+  explanatory state instead of a generic read error. Existing sources and normal
+  package operations remain available.
+- **Older libadwaita:** the adaptive window declares a minimum size, resolving
+  the warning exposed by Ubuntu's libadwaita 1.5.
+- **Reliable fixtures:** Mint uses its actual base identity package and distro
+  `dpkg-deb`, rather than the build image's broken wrapper. Runner locks, bounded
+  execution, container cleanup and removal of stale results make reruns auditable.
+
+## UI and functionality now implemented
+
+Installed packages use recycled GTK rows, not append-only pagination. Search
+clears stale actions immediately, reports its 200-result ceiling and balances
+Install/Installed controls. History uses semantic action chips and expandable,
+recycled package rows; color accompanies text rather than replacing it.
+
+Updates and shared transaction reviews retain package-row download, unpacking
+and configuration status. Download fractions use byte counts; installation bars
+pulse because APT supplies overall, not per-package, installation percentages.
+Bars hide when a stage completes and before work begins. Upgrade controls hide
+during execution. Successful operations and cancellations return with temporary
+messages; failures and completion warnings remain inspectable.
+
+Package details offer one Remove action with an unchecked purge-configuration
+option, plus appropriate install/upgrade/reinstall actions. Local `.deb` files
+have a Browse-page chooser, Home shortcut, command-line entry and installed file
+association. See [CLI and local packages](CLI-AND-LOCAL-PACKAGES.md) for limits.
+
+Icons come from local AppStream/theme metadata with a generic fallback; remote
+icon URLs are not fetched. Optional screenshots use bounded HTTPS transfers,
+asynchronous decoding and retry. Mirror saving follows Nala's save-only pattern:
+Orbit owns a separate source file and preserves existing sources.
 
 ## Measured performance
 
-On this machine, with 3,699 installed packages and 138 upgrade candidates:
+The distro investigation profiled an original Debian `bash` search at roughly
+149 seconds, dominated by APT record lookup. A revised scan returned in roughly
+3 seconds. Profiling overhead and cache/machine variation mean these diagnostic
+runs are not a controlled benchmark or a universal speedup claim.
 
-| Read operation | Before origin-label fix | After origin-label fix |
-| --- | ---: | ---: |
-| First installed snapshot | 82.48 s | 0.415 s |
-| Upgrade snapshot | 2.361 s | 0.165 s |
-| Search for `bash` | 5.58 s | 1.232 s |
-
-These are historical measurements before the added upgrade-policy simulation and
-include normal machine/cache variation.
-The large installed-list difference came from repeated repository trust checks
-inside python-apt's `Origin` construction. Display labels now read cached source
-metadata; authenticated installation is still enforced by APT at commit time.
+Historical measurements remain useful context: the September installed-snapshot
+origin-label fix reduced one run from 82.48 seconds to 0.415 seconds. Later tests
+profiled 10,000 installed fixtures with approximately 205–206 live row containers.
+See the dated audit for conditions; these measurements are not current guarantees
+for every system, catalogue or artwork workload.
 
 ## Remaining release limits
 
-- The development checkout launches its Python helper through Polkit's generic
-  administrator authorization. A distributable system package should install a
-  root-owned helper and a narrowly scoped Polkit action. Do not install an
-  authorization rule that bypasses authentication for this development launcher.
-- A real desktop's authentication-agent interaction has not been automated.
-  The helper and GUI transport were tested separately and together with isolated
-  package operations, but no host upgrade was performed.
-- Live internet mirror reachability, hardware acceleration and other distro/GTK
-  combinations need release testing. Mirror parsing, save-without-refresh, and duplicate filtering
-  have regression coverage; mirror selection deliberately supports Debian only.
-- The local integration repository is explicitly trusted test data and has no
-  package scripts. It proves the APT/dpkg lifecycle, not repository-signature
-  infrastructure, service restarts, or arbitrary debconf interactions.
-- Configuration files are kept noninteractively and NEEDRESTART uses automatic
-  mode. A future GUI configuration/debconf editor is separate work.
-- APT installation percentages are overall values. Per-package bars show
-  measured download fractions and indeterminate installation activity; they do
-  not invent a percentage for unpacking/configuration.
+- **Desktop acceptance:** real graphical Polkit authorization, file-manager
+  associations, Wayland, screen readers, keyboard-only use, HiDPI and hardware
+  rendering still need acceptance testing. Xvfb success does not establish these.
+- **Release distribution:** the local package already installs a root-owned
+  helper and scoped Polkit action. Public release metadata, licensing review and
+  distribution remain work. The development launcher elevates a trusted checkout
+  through generic Polkit authorization; it is not the installed privilege boundary.
+- **Package behavior:** trusted fixture repositories do not establish repository
+  signature infrastructure, arbitrary maintainer-script behavior, service restarts,
+  general debconf interaction or every dependency graph. Configuration is kept
+  by default; an explicit purge removes package-managed configuration.
+- **Recovery:** cancellation and GUI pipe loss are tested. Power loss, forced
+  helper/dpkg termination, restart reconciliation and rollback remain unproven.
+- **Network/platform breadth:** proxy/captive-portal behavior, all repository
+  outages, OS DNS timing and older distribution stacks are not fully covered.
+  Mirror selection remains Debian-only. Required versions are Python 3.11+,
+  GTK 4.12+ and libadwaita 1.5+.
+- **Feature gaps:** hold editing, arbitrary version selection, history replay,
+  batch local archives, conffile/debconf choices, richer discovery, other package
+  backends and offline-update orchestration remain in the acceptance backlog.
 
-No installed host packages or host APT source files were changed during this work.
-
-## Follow-up polish
-
-- Mirror saving now follows Nala fetch's save-only behavior. It filters exact
-  enabled URI/suite duplicates in both `.list` and `.sources` files, excludes
-  Orbit's own file when comparing, and does not automatically refresh APT.
-- Mirror save results are inline rather than a progress dialog.
-- Installed packages append automatically near the scroll boundary. Stale
-  scheduled appends are discarded after filtering.
-- Search install/installed controls use matching widths and centered alignment.
-- History uses semantic colors plus icons/text, so meaning does not rely on color alone.
-- Per-package upgrade bars remain hidden before actual work begins.
-
-A score of 10 is not justified by these checks: production Polkit packaging,
-real desktop authentication, arbitrary package scripts, and cross-distro/user
-acceptance testing remain outside the verified scope.
-
-## Mirror and kept-back status corrections
-
-- Configured mirrors include enabled system/Nala sources for the active suite;
-  green text badges identify ownership. Only Orbit-owned entries are removable.
-- Benchmark metadata is attached before sorted insertion, so selecting the best
-  mirrors uses the actual latency order. Badges refresh after saving or clearing.
-- Upgrade snapshots simulate the same normal APT upgrade policy in memory and
-  clear all marks afterward. Excluded candidates retain amber kept-back badges
-  after reload, including transactions with no actionable upgrades.
-- Structured kept-back events use architecture-qualified package identities.
-  Completion, cancellation and failure labels use green, amber and red.
-
-## Application artwork
-
-- Browse, Installed, Updates and package details map binary package names to the
-  local AppStream catalogue, including architecture-qualified package names.
-- Repository cached artwork is preferred, followed by referenced installed theme
-  icons and a generic package fallback. No remote image URLs are fetched.
-- Catalogue indexing runs on data workers; artwork decodes on two workers and is
-  cached with a 256-entry bound. GTK updates use weak widget references on its
-  main context. Icon slots retain their dimensions while loading.
-- Validated 30 backend, 4 icon-mapping and 12 GTK tests (46 passing), including
-  real Debian GIMP artwork, corrupt images, unavailable metadata and cache reuse.
-  Verified the Browse screenshot, Ruff checks and wheel/source builds.
-
-## Package description screenshots
-
-- Shared AppStream metadata now supplies icons and screenshot URLs/captions.
-  Screenshot galleries are omitted when metadata is absent.
-- One screenshot loads at a time when details open, with asynchronous decoding,
-  bounded caching, navigation, captions, loading state and retry on failure.
-  Downloads accept HTTPS only, validate redirects, and enforce size/time limits.
-- 39 backend/metadata/transfer tests and 13 GTK tests passed (52 total). A real
-  Debian GIMP screenshot was fetched and visually verified in PackageDialog.
-  Added coverage for stale results, unavailable images and retry/navigation.
-
-## Structured transaction history
-
-- Replaced expanded text dumps with semantic count chips, action groups and
-  virtualized package lists showing names and versions. Technical transaction
-  details are collapsed separately. Groups are populated on first expansion.
-- Preserved purge, reinstall and downgrade records independently in APT/Nala
-  parsing, including mixed transactions and Nala's purge flag.
-- 41 backend/metadata tests and 14 GUI tests passed (55 total), including a
-  500-package history group and repeated expansion. Real local history was
-  visually checked at 820px and 420px widths.
+No score of 10 or complete desktop certification is claimed.

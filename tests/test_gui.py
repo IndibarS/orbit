@@ -444,6 +444,22 @@ class GuiTests(unittest.TestCase):
             run.assert_not_called()
             self.window._operation_active = False
 
+    def test_derivative_mirror_page_explains_unsupported_catalogue(self):
+        from unittest.mock import patch
+
+        from orbit_gtk.backend.mirrors import UnsupportedMirrorDistribution
+
+        page = self.window._pages["mirrors"]
+        with patch(
+            "orbit_gtk.ui.pages.mirrors.source_settings",
+            side_effect=UnsupportedMirrorDistribution("Debian only"),
+        ):
+            page._on_benchmark(None)
+        self.assertTrue(page._unsupported.get_visible())
+        self.assertFalse(page._content_scroll.get_visible())
+        self.assertFalse(page._progress.get_visible())
+        self.assertIsNone(page._worker)
+
     def test_full_upgrade_uses_inline_review(self):
         from unittest.mock import patch
 

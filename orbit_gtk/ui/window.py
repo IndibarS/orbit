@@ -29,6 +29,7 @@ class OrbitWindow(Adw.ApplicationWindow):
         self.connect("close-request", self._on_close_request)
         self.set_title("Orbit Package Manager")
         self.set_default_size(1100, 720)
+        self.set_size_request(360, 360)
         search_action = Gio.SimpleAction.new("search", None)
         search_action.connect("activate", lambda *_: self.focus_search())
         self.add_action(search_action)

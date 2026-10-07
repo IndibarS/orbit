@@ -5,6 +5,10 @@ It uses the distro's **python-apt** bindings for package data, dependency
 resolution, downloads, installation, removal, and repository refreshes.
 Nala's legacy Python code is a local reference, not a runtime dependency.
 
+The Docker compatibility matrix passed on Debian 13, Debian Sid, Ubuntu 24.04,
+Linux Mint 22.3 and Kali Rolling. See [tested versions and limits](docs/DISTRO-TESTING.md);
+this does not certify every Debian derivative or desktop session.
+
 ## Run with uv
 
 Requirements: Python 3.11+, GTK **4.12+**, libadwaita **1.5+**, python-apt, PyGObject,
@@ -43,8 +47,9 @@ libraries. The helper discards `APT_CONFIG` from its environment.
 
 The development `uv run` launcher still elevates the current checkout through
 generic Polkit authorization. Use it only with a trusted checkout. The Debian
-artifact is an unsigned local build; interactive authentication and multiple
-distribution releases still need acceptance testing before public release.
+artifact is an unsigned local build. Its build/install/CLI checks passed across
+five distro targets; real desktop authentication, file-manager integration and
+release metadata still need acceptance testing before public release.
 
 ## Application icons
 
@@ -98,8 +103,9 @@ promise an absolute time bound for the operating system's DNS resolver.
   install or remove after reviewing all dependency changes. Installed uses recycled
   rows so scrolling does not retain a widget for every package; no “Show more”
   button is needed. Ctrl+F opens search or focuses the installed
-  filter. Package details include install/upgrade review, remove and explicit
-  purge actions; purge deletes package-managed system configuration after review.
+  filter. Package details include install/upgrade review and one Remove button
+  with an optional Purge configuration files checkbox. Purge deletes
+  package-managed system configuration after review.
   Reinstall downloads the installed version again to restore package files,
   preserving local configuration; unavailable old versions are rejected.
 - **History:** inspect recorded Nala and APT transactions, including package versions.
@@ -117,19 +123,22 @@ promise an absolute time bound for the operating system's DNS resolver.
   Existing sources remain active; refresh package lists separately when ready.
   The next refresh can download indexes from each new mirror. The benchmark
   measures a Release-file transfer, not sustained package-download bandwidth.
+  Mirror selection supports Debian only. Derivatives show an explanatory page
+  and continue to use their configured APT repositories for package operations.
 - **Home:** real package/system statistics, upgrade navigation, cache cleanup,
   and repair of interrupted dpkg configuration.
   Statistics report failures independently, with Retry; cached upgrade counts
   do not claim that remote repositories have just been checked.
 
 Operations retain warnings visibly at completion, and inline reviews scroll in
-short windows. The [adversarial audit](docs/AUDIT-2026-09-24.md) records remaining
-feature gaps and release limits.
+short windows. The [adversarial audit](docs/AUDIT-2026-09-24.md) records
+historical findings; [the current validation report](docs/QUALITY.md) tracks release limits.
 
 Package operations preserve holds, reject essential/protected removals and
 unrequested downgrades, and require authenticated downloads. Normal upgrades
 never remove installed packages. APT's held-back updates are reported explicitly.
-Local configuration files are kept; package service restarts can occur.
+Local configuration files are kept by default; an explicit purge deletes package-managed
+configuration. Package service restarts can occur.
 Cancellation is available during transaction review. Once dpkg is applying
 changes, Orbit prevents closing the operation/window through its normal UI.
 An abandoned review expires after five minutes without applying changes.
@@ -139,8 +148,14 @@ An abandoned review expires after five minutes without applying changes.
 ```text
 orbit_gtk/
   main.py                  application entry point
+  cli.py                   command parsing and GUI workflow requests
   backend/
-    apt_cache.py           locked, cached read-only package snapshots
+    apt_cache.py           locked snapshots and search in compressed-index record order
+    local_deb.py           private archive staging and python-apt local installation
+    system_identity.py     OS identity and enabled Debian-suite detection
+    appstream.py           local application metadata and artwork
+    screenshots.py         bounded remote screenshot loading
+    network.py             capped, cancellable HTTP body reads
     apt_manager.py         GUI-facing backend facade
     transactions.py        resolve, validate, approve, commit through python-apt
     progress.py            APT callbacks → structured progress events
@@ -154,7 +169,9 @@ orbit_gtk/
     operation_view.py      shared review/progress component and process transport
     operation_dialog.py    dialog host for non-inline operations
     package_dialog.py      real package metadata
-    widgets.py             plain-text row factories
+    widgets.py             plain-text row factories and package artwork
+    transaction_plan.py    searchable, recycled review/progress rows
+    screenshots.py         package screenshot gallery
     pages/                 home, updates, browse, installed, history, cleanup, mirrors
 ```
 
@@ -167,16 +184,21 @@ API. APT itself invokes dpkg internally for ordinary transactions.
 ## Verify
 
 ```sh
-uv run python -m unittest discover -s tests -p test_backend.py -v
+uv run python -m unittest discover -s tests -v
 GDK_BACKEND=x11 GSK_RENDERER=cairo GSETTINGS_BACKEND=memory ORBIT_GUI_TESTS=1 \
-  xvfb-run -a uv run python -m unittest discover -s tests -p test_gui.py -v
+  dbus-run-session -- xvfb-run -a uv run python -m unittest discover -s tests -p test_gui.py -v
+ORBIT_NETWORK_TESTS=1 uv run python -m unittest discover -s tests -p test_network.py -v
+GDK_BACKEND=x11 GSK_RENDERER=cairo GSETTINGS_BACKEND=memory GTK_IM_MODULE=simple \
+  dbus-run-session -- xvfb-run -a uv run python tests/isolated_cli.py
 uv run python tests/isolated_transaction.py
-uvx ruff check orbit_gtk tests
-uvx ruff format --check orbit_gtk tests
+uvx ruff check orbit_gtk tests tools
+uvx ruff format --check orbit_gtk tests tools
 uv build
 ```
 
-GUI tests require `xvfb` (optional screenshots also require ImageMagick).
+Generic discovery skips opt-in GUI/network checks; the explicit commands above
+run them. GUI/IPC tests require `xvfb`, `xauth` and `dbus-run-session`
+(optional screenshots also require ImageMagick).
 The real APT/dpkg lifecycle test requires `bubblewrap` and `dpkg-dev`. It creates
 an isolated user namespace, mounts the host filesystem read-only, creates a
 local repository and temporary package database, then verifies installation,
@@ -237,3 +259,25 @@ failure can leave dependencies installed or the package partially configured;
 Home's package-health warning helps identify that state. Holds and downgrades
 are rejected. Mixed local/repository requests and batches of local archives
 are not supported yet.
+
+### Distribution testing
+
+See [the Docker distro matrix](docs/DISTRO-TESTING.md) for reproducible tests on
+Debian, Ubuntu, Linux Mint and Kali, along with coverage and desktop limitations.
+Run `python3 tools/test_distros.py` with Docker available. Generated logs and
+results live in Git-ignored `.artifacts/docker/`; disposable containers are removed
+and test images remain cached.
+
+Debian's displayed suite comes from enabled Debian sources, including `.pgp`
+archive keyrings, so Sid is shown as **Sid (unstable)** even when `os-release`
+says `forky`. Mixed Debian suites are labelled explicitly; derivatives retain
+their own OS identity. With no recognizable sources, Orbit reports the OS codename.
+
+## Documentation
+
+- [Validation and remaining release limits](docs/QUALITY.md)
+- [Distro results and repeatable Docker tests](docs/DISTRO-TESTING.md)
+- [CLI commands and local packages](docs/CLI-AND-LOCAL-PACKAGES.md)
+- [Feature coverage and acceptance backlog](docs/FEATURE-COVERAGE.md)
+- [Nala adaptation notes](docs/NALA_REFERENCE.md)
+- [Historical September audit](docs/AUDIT-2026-09-24.md)

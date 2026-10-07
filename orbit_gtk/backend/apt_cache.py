@@ -112,7 +112,22 @@ class OrbitAptCache:
         with self._lock:
             cache = self._require_cache()
             matches = []
+            # APT 3 stores compressed indexes. Alphabetical package traversal
+            # repeatedly seeks backwards in those files and can take minutes.
+            # Read translated descriptions in their physical record order instead;
+            # the final ranking remains independent of traversal order.
+            ordered = []
             for package in cache:
+                if cancelled and cancelled():
+                    return []
+                version = package.candidate or package.installed
+                if version is None:
+                    continue
+                files = version._cand.translated_description.file_list
+                position = (files[0][0].id, files[0][1]) if files else (-1, 0)
+                ordered.append((position, package))
+            ordered.sort(key=lambda item: item[0])
+            for _, package in ordered:
                 if cancelled and cancelled():
                     return []
                 if not self._is_real_package(package):

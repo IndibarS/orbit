@@ -35,6 +35,17 @@ class IdentityTests(unittest.TestCase):
         self.assertIn("Sid (unstable)", self.detect()["distro"])
         self.assertEqual(source.read_text(), text)
 
+    def test_current_debian_pgp_keyring_recognizes_sid(self):
+        (self.root / "debian.sources").write_text(
+            "Types: deb\nURIs: http://deb.debian.org/debian\nSuites: sid\n"
+            "Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp\n"
+        )
+        (self.root / "vendor.sources").write_text(
+            "Types: deb\nURIs: https://vendor.example/debian\nSuites: stable\n"
+            "Signed-By: /keys/vendor.pgp\n"
+        )
+        self.assertEqual(self.detect()["suite"], "Sid (unstable)")
+
     def test_legacy_aliases_and_managed_sources(self):
         (self.root / "sources.list").write_text(
             "deb [arch=amd64] https://deb.debian.org/debian unstable main\n"

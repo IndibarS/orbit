@@ -56,27 +56,40 @@ class CleanupPage(Gtk.Box):
         dependency_row = action_row(
             title=tr("Review packages no longer needed"),
             subtitle=tr(
-                "APT selects unused dependencies. Review every removal before applying; configuration files are kept."
+                "APT selects unused dependencies. Review every removal before applying."
             ),
         )
         review = Gtk.Button(label=tr("Review"), valign=Gtk.Align.CENTER)
         review.connect("clicked", self._on_autoremove)
         dependency_row.add_suffix(review)
-        dependencies.add(dependency_row)
-        for action, title in (
-            ("autopurge", "Remove unused dependencies and their configurations"),
-            ("purge-config", "Purge configurations of removed packages"),
-        ):
-            row = action_row(title=title, subtitle=tr("Review every package before applying."))
-            button = Gtk.Button(label=tr("Review"), valign=Gtk.Align.CENTER)
-            button.connect(
-                "clicked",
-                lambda _, selected=action: self.window.run_privileged(
-                    "Review cleanup", self.apt_manager.helper_command(selected)
-                ),
-            )
-            row.add_suffix(button)
-            dependencies.add(row)
+        dependency_controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        dependency_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        dependency_list.append(dependency_row)
+        dependency_controls.append(dependency_list)
+        self._purge_configs = Gtk.CheckButton(
+            label=tr("Also remove configurations"),
+            margin_start=12,
+            margin_end=12,
+            margin_bottom=12,
+        )
+        self._purge_configs.set_tooltip_text(
+            tr("Remove configuration files belonging to the unused packages selected by APT.")
+        )
+        dependency_controls.append(self._purge_configs)
+        dependencies.add(dependency_controls)
+        row = action_row(
+            title=tr("Purge configurations of removed packages"),
+            subtitle=tr("Remove configuration files left behind by packages already removed."),
+        )
+        button = Gtk.Button(label=tr("Review"), valign=Gtk.Align.CENTER)
+        button.connect(
+            "clicked",
+            lambda _: self.window.run_privileged(
+                "Review cleanup", self.apt_manager.helper_command("purge-config")
+            ),
+        )
+        row.add_suffix(button)
+        dependencies.add(row)
         self._pref_page.add(dependencies)
 
         # Clean button
@@ -199,8 +212,9 @@ class CleanupPage(Gtk.Box):
         self._clean_btn.set_sensitive(self._data_ready and selected_size > 0)
 
     def _on_autoremove(self, _button):
+        action = "autopurge" if self._purge_configs.get_active() else "autoremove"
         self.window.run_privileged(
-            "Remove unused dependencies", self.apt_manager.helper_command("autoremove")
+            "Review unused dependencies", self.apt_manager.helper_command(action)
         )
 
     def _on_clean(self, _btn):

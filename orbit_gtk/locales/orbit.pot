@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Orbit\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 10:30+0530\n"
+"POT-Creation-Date: 2026-10-10 20:59+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,7 +58,7 @@ msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/package_dialog.py:133
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:62
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:71
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:84
 msgid "Review"
 msgstr ""
 
@@ -310,7 +310,7 @@ msgid "Space to Reclaim"
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:35
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:102
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:115
 msgid "Calculating…"
 msgstr ""
 
@@ -327,29 +327,40 @@ msgid "Review packages no longer needed"
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:59
-msgid ""
-"APT selects unused dependencies. Review every removal before applying; "
-"configuration files are kept."
+msgid "APT selects unused dependencies. Review every removal before applying."
 msgstr ""
 
 #: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:70
-msgid "Review every package before applying."
+msgid "Also remove configurations"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:87
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:168
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:76
+msgid ""
+"Remove configuration files belonging to the unused packages selected by APT."
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:81
+msgid "Purge configurations of removed packages"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:82
+msgid "Remove configuration files left behind by packages already removed."
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:100
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:181
 msgid "Clean Selected Items"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:128
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:141
 msgid "Could not calculate cleanup space"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:163
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:176
 msgid "Nothing to clean"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:164
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/cleanup.py:177
 msgid "Your system cache is already clean"
 msgstr ""
 
@@ -647,7 +658,7 @@ msgstr ""
 msgid "Could not load updates"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:244
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:243
 msgid ""
 "Download progress is measured; installation pulses until APT confirms "
 "completion."
@@ -657,7 +668,11 @@ msgstr ""
 msgid "Kept back"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:411
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:414
+msgid "Downloading"
+msgstr ""
+
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/updates.py:435
 msgid "APT excluded this package from the reviewed upgrade."
 msgstr ""
 
@@ -757,48 +772,44 @@ msgid ""
 "file."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:154
-msgid "Use best 3"
-msgstr ""
-
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:177
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:157
 msgid "Number of fastest mirrors"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:179
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:158
 msgid "Use fastest"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:182
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:168
 msgid "Apply selection"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:292
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:286
 msgid "No mirrors configured for the active suite"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:305
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:299
 msgid ""
 "Enabled in APT sources for the active suite. Package lists are refreshed "
 "separately."
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:310
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:304
 msgid "Remove"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:368
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:361
 msgid "Downloading mirror catalogue…"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:442
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:435
 msgid "Use"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:449
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:442
 msgid "Include this mirror in the selection"
 msgstr ""
 
-#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:525
+#: /home/indibar/Documents/projects/orbit-gtk/orbit_gtk/ui/pages/mirrors.py:517
 msgid "Save custom repository settings?"
 msgstr ""

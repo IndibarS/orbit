@@ -591,6 +591,21 @@ class GuiTests(unittest.TestCase):
         self.spin(lambda: dialog.get_child() is not None)
         dialog.close()
 
+    def test_mirror_read_failure_disables_actions_and_recovers(self):
+        from orbit_gtk.backend.mirrors import SourceSettings
+
+        page = self.window._pages["mirrors"]
+        generation = page._load_generation
+        page._load_failed(generation, "Conflicting signing keys")
+        for control in (page._benchmark, page._clear, page._best):
+            self.assertFalse(control.get_sensitive())
+        self.assertTrue(page._banner.get_revealed())
+        profile = SourceSettings("sid", ("main",))
+        page._show_profiles([profile], 0, [], set(), generation)
+        self.assertFalse(page._banner.get_revealed())
+        self.assertTrue(page._benchmark.get_sensitive())
+        self.assertTrue(page._repository.get_sensitive())
+
     def test_devuan_mirror_selection_preserves_archive_layout(self):
         from unittest.mock import patch
 
@@ -1134,16 +1149,36 @@ class GuiTests(unittest.TestCase):
         from orbit_gtk.backend.models import PackageInfo
         from orbit_gtk.ui.package_dialog import PackageDialog
 
-        with patch.object(self.window, "run_privileged") as run:
-            self.window._pages["cleanup"]._on_autoremove(None)
-            self.assertEqual(run.call_args.args[1][-1], "autoremove")
-
         def descendants(widget):
             yield widget
             child = widget.get_first_child()
             while child:
                 yield from descendants(child)
                 child = child.get_next_sibling()
+
+        cleanup = self.window._pages["cleanup"]
+        rows = {w.get_title(): w for w in descendants(cleanup) if isinstance(w, Adw.ActionRow)}
+        self.assertNotIn("Remove unused dependencies and their configurations", rows)
+        review = next(
+            w
+            for w in descendants(rows["Review packages no longer needed"])
+            if isinstance(w, Gtk.Button)
+        )
+        purge = next(
+            w
+            for w in descendants(rows["Purge configurations of removed packages"])
+            if isinstance(w, Gtk.Button)
+        )
+        self.assertFalse(cleanup._purge_configs.get_active())
+        with patch.object(self.window, "run_privileged") as run:
+            for checked, action in (
+                (False, "autoremove"), (True, "autopurge"), (False, "autoremove")
+            ):
+                cleanup._purge_configs.set_active(checked)
+                review.emit("clicked")
+                self.assertEqual(run.call_args.args[1][-1], action)
+                purge.emit("clicked")
+                self.assertEqual(run.call_args.args[1][-1], "purge-config")
 
         actions = []
         dialog = PackageDialog(

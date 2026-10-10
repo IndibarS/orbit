@@ -223,13 +223,32 @@ class MirrorProviderTests(unittest.TestCase):
         )
         self.assertEqual(profiles[0].architectures, ("amd64", "i386"))
 
+    def test_compatible_component_and_source_package_settings_merge(self):
+        self.path = self.root / "debian.sources"
+        key = "Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg\n"
+        result = self.profiles(
+            "debian",
+            "Types: deb deb-src\nURIs: https://deb.debian.org/debian\nSuites: sid\n"
+            "Components: main contrib non-free non-free-firmware\n" + key + "\n"
+            "Types: deb\nURIs: https://ftp.debian.org/debian\nSuites: sid\n"
+            "Components: main\n" + key,
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].components, ("main", "contrib", "non-free", "non-free-firmware"))
+        self.assertTrue(result[0].source_packages)
+        self.assertEqual(len(result[0].uris), 2)
+
     def test_conflicting_sources_fail_instead_of_merging_permissions(self):
-        with self.assertRaisesRegex(ValueError, "Conflicting"):
-            self.profiles(
-                "ubuntu",
-                "deb http://archive.ubuntu.com/ubuntu noble main\n"
-                "deb http://archive.ubuntu.com/ubuntu noble main universe\n",
-            )
+        for options in (
+            "arch=amd64",
+            "signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg",
+        ):
+            with self.subTest(options=options), self.assertRaisesRegex(ValueError, "Conflicting"):
+                self.profiles(
+                    "ubuntu",
+                    "deb http://archive.ubuntu.com/ubuntu noble main\n"
+                    f"deb [{options}] http://archive.ubuntu.com/ubuntu noble main universe\n",
+                )
 
     def test_catalogues_exclude_iso_and_navigation_urls(self):
         mint = "<table><td>https://iso.example/mint</td></table><h2>Repository mirrors</h2><table><td>https://packages.example/mint/</td></table><table><td>https://sponsor.example/</td></table>"

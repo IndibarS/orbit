@@ -126,13 +126,17 @@ promise an absolute time bound for the operating system's DNS resolver.
   Commands and requested-user details sit in a separate disclosure.
 - **Cleanup:** remove downloaded archives or explicitly selected repository
   indexes under APT's corresponding locks. Review unused dependencies before
-  removing them through APT; configuration files are retained. Failed space
+  removing them through APT; configuration files are retained unless **Also remove
+  configurations** is checked. A separate review action purges configurations
+  left behind by packages already removed. Failed space
   calculations show an error and Retry rather than claiming the cache is clean.
 - **Mirrors:** select an archive/suite, benchmark distro-specific Release files,
   and manage an optional
   Orbit-owned source file, following Nala fetch: skip mirrors already enabled
   for the release and save without refreshing indexes. Saving finishes inline.
   Existing sources remain active; refresh package lists separately when ready.
+  Compatible component and source-package selections across system source files
+  are combined during discovery; signing-key and architecture conflicts remain blocked.
   The next refresh can download indexes from each new mirror. The benchmark
   measures a Release-file transfer, not sustained package-download bandwidth.
   Debian, Ubuntu, Devuan, Linux Mint and Kali archives have separate providers, recognized

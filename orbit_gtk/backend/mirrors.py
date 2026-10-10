@@ -395,12 +395,23 @@ def source_profiles(identity=None, paths=None, lists_dir=Path("/var/lib/apt/list
                         "deb-src" in fields.get("types", "").split(),
                     )
                     old = profiles.get(settings.repository)
-                    if old and old != settings:
+                    if old and (
+                        old.signed_by != settings.signed_by
+                        or set(old.architectures) != set(settings.architectures)
+                    ):
                         raise ValueError(
-                            f"Conflicting source settings for {settings.label}; resolve them in APT sources first."
+                            f"Conflicting signing keys or architecture restrictions for {settings.label}; "
+                            "align those settings in APT sources before selecting mirrors."
                         )
                     if old:
-                        settings = replace(settings, uris=tuple(dict.fromkeys((*old.uris, uri))))
+                        # Multiple stanzas may enable different components or deb-src.
+                        # They describe the same archive, not conflicting trust settings.
+                        settings = replace(
+                            settings,
+                            components=tuple(dict.fromkeys((*old.components, *settings.components))),
+                            source_packages=old.source_packages or settings.source_packages,
+                            uris=tuple(dict.fromkeys((*old.uris, uri))),
+                        )
                     profiles[settings.repository] = settings
                     break
     if paths is None and ORBIT_SOURCES_PATH.exists():

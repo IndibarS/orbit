@@ -6,7 +6,7 @@ import threading
 from dataclasses import replace
 from urllib.parse import urlparse
 
-from gi.repository import Adw, Gio, GLib, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.mirror_benchmark import MirrorBenchmarkWorker, get_flag_for_mirror
@@ -149,40 +149,28 @@ class MirrorsPage(Gtk.Box):
         self._results = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
         self._results.add_css_class("boxed-list")
         self._results.set_sort_func(self._sort_rows)
-        self._results_group.add(self._results)
-        result_actions = Gtk.Box(spacing=6)
-        self._best = Gtk.Button(label=tr("Use best 3"), valign=Gtk.Align.CENTER)
-        self._best.add_css_class("suggested-action")
-        self._best.set_sensitive(False)
-        self._best.connect("clicked", lambda _button: self._use_best(3))
-        result_actions.append(self._best)
-        menu = Gio.Menu()
-        for count in (3, 5, 8, 16):
-            menu.append(f"Use best {count}", f"mirrors.best_{count}")
-        chooser = Gtk.MenuButton(menu_model=menu, icon_name="pan-down-symbolic")
-        chooser.add_css_class("flat")
-        chooser.set_sensitive(False)
-        result_actions.append(chooser)
-        self._choose_menu = chooser
-        action_group = Gio.SimpleActionGroup()
-        for count in (3, 5, 8, 16):
-            action = Gio.SimpleAction.new(f"best_{count}", None)
-            action.connect(
-                "activate", lambda _action, _parameter, selected=count: self._use_best(selected)
-            )
-            action_group.add_action(action)
-        self.insert_action_group("mirrors", action_group)
+        results_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        self._result_actions = Gtk.Box(spacing=8, valign=Gtk.Align.CENTER)
         self._count = Gtk.SpinButton.new_with_range(1, 16, 1)
         self._count.set_value(3)
+        self._count.set_valign(Gtk.Align.CENTER)
         self._count.set_tooltip_text(tr("Number of fastest mirrors"))
-        result_actions.append(self._count)
-        custom = Gtk.Button(label=tr("Use fastest"))
-        custom.connect("clicked", lambda _: self._use_best(self._count.get_value_as_int()))
-        result_actions.append(custom)
-        selected = Gtk.Button(label=tr("Apply selection"))
+        self._best = Gtk.Button(label=tr("Use fastest"), valign=Gtk.Align.CENTER)
+        self._best.add_css_class("suggested-action")
+        self._best.set_sensitive(False)
+        self._best.connect("clicked", lambda _: self._use_best(self._count.get_value_as_int()))
+        fastest = Gtk.Box(valign=Gtk.Align.CENTER)
+        fastest.add_css_class("linked")
+        fastest.append(self._count)
+        fastest.append(self._best)
+        self._result_actions.append(fastest)
+        self._result_actions.append(Gtk.Box(hexpand=True))
+        selected = Gtk.Button(label=tr("Apply selection"), valign=Gtk.Align.CENTER)
         selected.connect("clicked", self._apply_selection)
-        result_actions.append(selected)
-        self._results_group.set_header_suffix(result_actions)
+        self._result_actions.append(selected)
+        results_content.append(self._result_actions)
+        results_content.append(self._results)
+        self._results_group.add(results_content)
 
     def load_data(self) -> None:
         if self._loaded:
@@ -235,6 +223,8 @@ class MirrorsPage(Gtk.Box):
         self._unsupported.set_visible(False)
         self._content_scroll.set_visible(True)
         self._active_group.set_title(f"Configured mirrors · {self._settings.label}")
+        self._banner.set_revealed(False)
+        self._repository.set_sensitive(True)
         self._benchmark.set_sensitive(self._worker is None and self._operation is None)
         self._show_active(mirrors, existing, generation)
         return False
@@ -254,7 +244,6 @@ class MirrorsPage(Gtk.Box):
         self._clear.set_sensitive(False)
         self._benchmark.set_sensitive(False)
         self._best.set_sensitive(False)
-        self._choose_menu.set_sensitive(False)
         self._active_urls = []
         self._configured_urls = set()
         for active_row in self._active_rows:
@@ -273,6 +262,11 @@ class MirrorsPage(Gtk.Box):
     def _load_failed(self, generation: int, message: str) -> bool:
         if generation == self._load_generation:
             self._loaded = False
+            self._settings = None
+            self._benchmark.set_sensitive(False)
+            self._clear.set_sensitive(False)
+            self._best.set_sensitive(False)
+            self._repository.set_sensitive(False)
             self._banner.set_title(f"Could not read configured mirrors: {message}")
             self._banner.set_button_label("Dismiss")
             self._banner.set_revealed(True)
@@ -361,7 +355,6 @@ class MirrorsPage(Gtk.Box):
         self._total = 0
         self._benchmark.set_sensitive(False)
         self._best.set_sensitive(False)
-        self._choose_menu.set_sensitive(False)
         self._results_group.set_visible(False)
         self._progress.set_fraction(0.0)
         self._progress.set_visible(True)
@@ -454,7 +447,6 @@ class MirrorsPage(Gtk.Box):
         self._mark_result(row)
         self._results.append(row)
         self._best.set_sensitive(True)
-        self._choose_menu.set_sensitive(True)
         return False
 
     def _on_done(self, results: list[MirrorInfo], error: str | None) -> bool:

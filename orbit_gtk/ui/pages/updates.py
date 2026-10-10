@@ -10,7 +10,7 @@ from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.backend.models import PackageInfo
 from orbit_gtk.i18n import tr
 from orbit_gtk.ui.operation_view import OperationView
-from orbit_gtk.ui.widgets import action_row, package_icon
+from orbit_gtk.ui.widgets import action_row, package_icon, status_chip
 
 
 class UpdatesPage(Gtk.Box):
@@ -26,16 +26,16 @@ class UpdatesPage(Gtk.Box):
         self._pulsing: set[str] = set()
         self._running = False
 
-        self._banner = Adw.Banner(button_label="Upgrade all", revealed=False)
-        self._banner.connect("button-clicked", self._on_upgrade_all)
+        self._banner = Adw.Banner(revealed=False)
         self.append(self._banner)
-        self._upgrade_options = Gtk.MenuButton(
-            label=tr("Upgrade options"),
+        self._upgrade_options = Adw.SplitButton(
+            label=tr("Upgrade all"),
             halign=Gtk.Align.END,
             margin_end=12,
             margin_top=6,
             visible=False,
         )
+        self._upgrade_options.connect("clicked", self._on_upgrade_all)
         self._upgrade_popover = Gtk.Popover()
         options = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -55,9 +55,14 @@ class UpdatesPage(Gtk.Box):
                 xalign=0,
             )
         )
-        full_upgrade = Gtk.Button(label=tr("Review full upgrade"))
-        full_upgrade.connect("clicked", self._on_full_upgrade)
-        options.append(full_upgrade)
+        self._full_upgrade = Gtk.CheckButton(label=tr("Enable full-upgrade"))
+        self._full_upgrade.connect(
+            "toggled",
+            lambda check: self._upgrade_options.set_label(
+                tr("Full upgrade") if check.get_active() else tr("Upgrade all")
+            ),
+        )
+        options.prepend(self._full_upgrade)
         self._upgrade_popover.set_child(options)
         self._upgrade_options.set_popover(self._upgrade_popover)
         self.append(self._upgrade_options)
@@ -67,8 +72,55 @@ class UpdatesPage(Gtk.Box):
             propagate_natural_height=True,
             max_content_height=360,
         )
+        self._operation_scroll = operation_scroll
+        operation_scroll.set_visible(False)
         operation_scroll.set_child(self._operation_slot)
         self.append(operation_scroll)
+
+        self._plan_tools = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=4,
+            margin_start=12,
+            margin_end=12,
+            visible=False,
+        )
+        filters = Gtk.Box(spacing=8)
+        self._plan_search = Gtk.SearchEntry(
+            placeholder_text=tr("Find a package in this plan…"), hexpand=True
+        )
+        self._plan_search.connect("changed", lambda *_: self._filter_plan())
+        self._plan_actions = [
+            None,
+            "upgrade",
+            "install",
+            "remove",
+            "purge",
+            "reinstall",
+            "downgrade",
+            "kept-back",
+        ]
+        self._plan_filter = Gtk.DropDown(
+            model=Gtk.StringList.new(
+                [
+                    "All actions",
+                    "Upgrade",
+                    "Install",
+                    "Remove",
+                    "Purge",
+                    "Reinstall",
+                    "Downgrade",
+                    "Kept back",
+                ]
+            )
+        )
+        self._plan_filter.connect("notify::selected", lambda *_: self._filter_plan())
+        filters.append(self._plan_search)
+        filters.append(self._plan_filter)
+        self._plan_tools.append(filters)
+        self._plan_count = Gtk.Label(xalign=0)
+        self._plan_count.add_css_class("caption")
+        self._plan_tools.append(self._plan_count)
+        self.append(self._plan_tools)
 
         self._stack = Gtk.Stack(vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE)
         self.append(self._stack)
@@ -155,9 +207,6 @@ class UpdatesPage(Gtk.Box):
         title = f"{len(packages)} update{'s' if len(packages) != 1 else ''} available"
         if held:
             title += f" · {held} kept back"
-        self._banner.set_button_label(
-            "Upgrade all" if held < len(packages) else "Check upgrade plan"
-        )
         self._banner.set_title(title)
         self._banner.set_revealed(True)
         for package in packages:
@@ -181,23 +230,20 @@ class UpdatesPage(Gtk.Box):
         row.add_prefix(package_icon(package))
         key = package.full_name or package.name
         progress_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL, spacing=4, valign=Gtk.Align.CENTER
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=10, valign=Gtk.Align.CENTER
         )
-        progress_box.set_size_request(170, -1)
         progress_box.set_visible(False)
-        status = Gtk.Label(
-            label="Kept back" if package.is_held_back else "Ready",
-            xalign=0,
-            wrap=True,
-            max_width_chars=28,
-        )
-        status.add_css_class("caption")
-        progress_box.append(status)
-        bar = Gtk.ProgressBar()
+        status = status_chip("Kept back" if package.is_held_back else "Ready", "accent")
+        status.set_halign(Gtk.Align.END)
+        status.set_wrap(True)
+        status.set_max_width_chars(28)
+        bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER)
+        bar.set_size_request(100, -1)
         bar.set_tooltip_text(
             tr("Download progress is measured; installation pulses until APT confirms completion.")
         )
         progress_box.append(bar)
+        progress_box.append(status)
         row.add_suffix(progress_box)
         self._row_widgets[key] = {
             "bar": bar,
@@ -232,11 +278,12 @@ class UpdatesPage(Gtk.Box):
         )
 
     def _on_upgrade_all(self, _banner: Adw.Banner) -> None:
-        self.start_operation("Upgrade packages", self.apt_manager.helper_command("upgrade"))
-
-    def _on_full_upgrade(self, _button) -> None:
+        full = self._full_upgrade.get_active()
         self._upgrade_popover.popdown()
-        self.start_operation("Review full upgrade", self.apt_manager.helper_command("full-upgrade"))
+        self.start_operation(
+            "Review full upgrade" if full else "Upgrade packages",
+            self.apt_manager.helper_command("full-upgrade" if full else "upgrade"),
+        )
 
     def start_operation(self, title: str, command: list[str]) -> None:
         if not self.window.claim_operation():
@@ -245,9 +292,12 @@ class UpdatesPage(Gtk.Box):
         self._running = True
         self._pending.clear()
         self._pulsing.clear()
+        self._plan_tools.set_visible(False)
+        self._plan_search.set_text("")
+        self._plan_filter.set_selected(0)
         self._banner.set_revealed(False)
         self._upgrade_options.set_visible(False)
-        self._stack.set_visible_child_name("list")
+        self._stack.set_visible_child_name("list" if self._row_widgets else "empty")
         for widgets in self._row_widgets.values():
             if widgets["button"]:
                 widgets["button"].set_visible(False)
@@ -255,16 +305,24 @@ class UpdatesPage(Gtk.Box):
             title,
             command,
             compact=True,
+            inline_plan=True,
             on_event=self._operation_event,
             on_done=self._operation_done,
             on_close=self._dismiss_operation,
         )
         self._operation_slot.append(self._operation)
+        self._operation_scroll.set_visible(True)
         GLib.timeout_add(100, self._pulse_rows)
 
     def _operation_event(self, event: dict) -> None:
         kind = event["event"]
         if kind == "plan":
+            self._stack.set_visible_child_name("list")
+            for widgets in self._row_widgets.values():
+                widgets["action"] = "unchanged"
+                widgets["status"].set_label("Not in this plan")
+                widgets["progress_box"].set_visible(True)
+                widgets["bar"].set_visible(False)
             for change in event["changes"]:
                 key = change["name"]
                 if key not in self._row_widgets:
@@ -281,10 +339,28 @@ class UpdatesPage(Gtk.Box):
                 widgets["badge"].set_visible(False)
                 if widgets["button"]:
                     widgets["button"].set_visible(False)
-                widgets["status"].set_label(f"Queued for {change['action']}")
+                from orbit_gtk.ui.transaction_plan import ACTIONS
+
+                label, color = ACTIONS[change["action"]]
+                widgets["row"].set_subtitle(
+                    f"{change.get('old_version') or '—'} → {change.get('new_version') or '—'}"
+                )
+                widgets["action"] = change["action"]
+                widgets["status"].set_label(label)
+                for old in ("success", "warning", "error", "accent"):
+                    widgets["status"].remove_css_class(old)
+                widgets["status"].add_css_class(color)
+                widgets["progress_box"].set_visible(True)
+                widgets["bar"].set_visible(False)
                 widgets["bar"].set_fraction(0)
                 self._pending.add(key)
             self._mark_kept_back(event.get("kept_back", []))
+            self._plan_tools.set_visible(True)
+            self._filter_plan()
+        elif kind == "applying":
+            for key in self._pending:
+                widgets = self._row_widgets[key]
+                widgets["status"].set_label(f"Queued for {widgets['action']}")
         elif kind == "kept-back":
             self._mark_kept_back(event.get("packages", []))
         elif kind in {"package-progress", "progress"} and event.get("package"):
@@ -293,7 +369,10 @@ class UpdatesPage(Gtk.Box):
                 return
             widgets = self._row_widgets[key]
             widgets["progress_box"].set_visible(True)
-            widgets["status"].set_label(event.get("message", "Working…"))
+            widgets["status"].set_label(self._stage_label(event))
+            widgets["status"].set_tooltip_text(event.get("message", ""))
+            for color in ("success", "warning", "error", "accent"):
+                widgets["status"].remove_css_class(color)
             widgets["status"].add_css_class("accent")
             # APT's install percentage is transaction-wide, not per-package.
             # Only acquisition byte counts provide a real per-package fraction.
@@ -311,6 +390,29 @@ class UpdatesPage(Gtk.Box):
                 self._pulsing.discard(key)
                 widgets["bar"].set_fraction(max(0, min(1, percent / 100)))
 
+    @staticmethod
+    def _stage_label(event: dict) -> str:
+        """The row already identifies the package; the chip names only its stage."""
+        message = str(event.get("message", ""))
+        for prefix, label in (
+            ("Completely removed", "Purged"),
+            ("Preparing to unpack", "Preparing"),
+            ("Processing triggers", "Processing triggers"),
+            ("Setting up", "Configuring"),
+            ("Downloading", "Downloading"),
+            ("Downloaded", "Downloaded"),
+            ("Unpacking", "Unpacking"),
+            ("Installing", "Installing"),
+            ("Installed", "Installed"),
+            ("Configuring", "Configuring"),
+            ("Removing", "Removing"),
+            ("Removed", "Removed"),
+            ("Purging", "Purging"),
+        ):
+            if message == prefix or message.startswith((prefix + " ", prefix + "…", prefix + ".")):
+                return tr(label)
+        return tr("Downloading" if event.get("event") == "package-progress" else "Working…")
+
     def _mark_kept_back(self, names: list[str]) -> None:
         for key in names:
             widgets = self._row_widgets.get(key)
@@ -327,6 +429,7 @@ class UpdatesPage(Gtk.Box):
                     )
                 )
                 widgets = self._row_widgets[key]
+            widgets["action"] = "kept-back"
             widgets["badge"].set_visible(True)
             widgets["badge"].set_tooltip_text(
                 tr("APT excluded this package from the reviewed upgrade.")
@@ -353,14 +456,20 @@ class UpdatesPage(Gtk.Box):
             widgets["progress_box"].set_visible(not cancelled)
             widgets["bar"].set_visible(False)
             widgets["bar"].set_fraction(1 if success else 0)
-            widgets["status"].remove_css_class("accent")
+            for color in ("success", "warning", "error", "accent"):
+                widgets["status"].remove_css_class(color)
             widgets["status"].add_css_class(
                 "success" if success else "warning" if cancelled else "error"
             )
             widgets["status"].set_label(
                 "Completed" if success else "Cancelled" if cancelled else "Stopped — check details"
             )
-        if self._operation.dismiss_automatically:
+        if success and self._operation._warning_count:
+            self.window.show_warning_toast(
+                self._operation._warnings, self._operation._warning_count
+            )
+            self._dismiss_operation()
+        elif self._operation.dismiss_automatically:
             self.window.show_toast("Operation cancelled" if cancelled else "Operation completed")
             self._dismiss_operation()
         self.window.refresh_all()
@@ -370,5 +479,22 @@ class UpdatesPage(Gtk.Box):
             return
         self._operation_slot.remove(self._operation)
         self._operation = None
+        self._operation_scroll.set_visible(False)
+        self._plan_tools.set_visible(False)
         self.window.release_operation()
         self.invalidate()
+
+    def _filter_plan(self):
+        query = self._plan_search.get_text().strip().casefold()
+        action = self._plan_actions[self._plan_filter.get_selected()]
+        shown = 0
+        for key, widgets in self._row_widgets.items():
+            visible = (not query or query in key.casefold()) and (
+                action is None or widgets.get("action") == action
+            )
+            widgets["row"].set_visible(visible)
+            if visible and key in self._pending:
+                shown += 1
+        self._plan_count.set_label(
+            f"Showing {shown} of {len(self._pending)} planned changes. Apply uses the entire plan."
+        )

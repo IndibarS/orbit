@@ -6,6 +6,7 @@ import json
 import math
 import subprocess
 import threading
+from collections import Counter
 from collections.abc import Callable
 from queue import Empty, Queue
 
@@ -13,8 +14,8 @@ from gi.repository import Adw, GLib, Gtk
 
 from orbit_gtk.backend.apt_manager import AptManager
 from orbit_gtk.i18n import tr
-from orbit_gtk.ui.transaction_plan import TransactionPlan
-from orbit_gtk.ui.widgets import expander_row
+from orbit_gtk.ui.transaction_plan import ACTIONS, TransactionPlan
+from orbit_gtk.ui.widgets import expander_row, status_chip
 
 
 class OperationView(Gtk.Box):
@@ -27,9 +28,11 @@ class OperationView(Gtk.Box):
         on_close: Callable[[], None] | None = None,
         on_event: Callable[[dict], None] | None = None,
         compact: bool = False,
+        inline_plan: bool = False,
     ) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8 if compact else 16)
         self._compact = compact
+        self._inline_plan = inline_plan
         self._on_close = on_close
         self._on_event = on_event
         self._on_done = on_done
@@ -72,6 +75,53 @@ class OperationView(Gtk.Box):
         self._review = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, visible=False)
         self._summary = Gtk.Label(wrap=True, xalign=0)
         self._review.append(self._summary)
+        self._review_card = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=12, visible=inline_plan
+        )
+        self._review_card.add_css_class("card")
+        card_content = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=12,
+            margin_top=12,
+            margin_bottom=12,
+            margin_start=12,
+            margin_end=12,
+        )
+        self._review_card.append(card_content)
+        self._metrics = {}
+        metrics = Gtk.FlowBox(
+            selection_mode=Gtk.SelectionMode.NONE,
+            homogeneous=True,
+            min_children_per_line=1,
+            max_children_per_line=3,
+            column_spacing=18,
+            row_spacing=8,
+        )
+        for key, caption in (
+            ("packages", "Package changes"),
+            ("download", "Download"),
+            ("disk", "Disk space"),
+        ):
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            label = Gtk.Label(label=tr(caption), xalign=0)
+            label.add_css_class("caption")
+            label.add_css_class("dim-label")
+            value = Gtk.Label(xalign=0, wrap=True)
+            value.add_css_class("heading")
+            box.append(label)
+            box.append(value)
+            metrics.insert(box, -1)
+            self._metrics[key] = value
+        card_content.append(metrics)
+        self._action_chips = Gtk.FlowBox(
+            selection_mode=Gtk.SelectionMode.NONE,
+            max_children_per_line=6,
+            column_spacing=8,
+            row_spacing=6,
+        )
+        card_content.append(self._action_chips)
+        self._review.append(self._review_card)
+        self._summary.set_visible(not inline_plan)
         self._changes = TransactionPlan()
         self._changes.set_visible(False)
         self._configuration_note = Gtk.Label(wrap=True, xalign=0)
@@ -219,7 +269,9 @@ class OperationView(Gtk.Box):
             self._show_plan(event)
         elif kind in {"error", "warning"}:
             self._append(message + "\n")
-            if kind == "warning":
+            if kind == "warning" and " ".join(message.split()) not in {
+                " ".join(warning.split()) for warning in self._warnings
+            }:
                 self._warning_count += 1
                 self._warnings = [*self._warnings[-7:], message]
             if kind == "error":
@@ -250,7 +302,7 @@ class OperationView(Gtk.Box):
                 raise ValueError("Invalid transaction size")
         if plan["download_bytes"] < 0:
             raise ValueError("Invalid download size")
-        self._changes.set_visible(True)
+        self._changes.set_visible(not self._inline_plan)
         self._changes.set_changes(changes)
         purging = any(change["action"] == "purge" for change in changes)
         removing = any(change["action"] in {"remove", "purge"} for change in changes)
@@ -295,6 +347,28 @@ class OperationView(Gtk.Box):
             f"{len(changes):,} package changes · {AptManager.format_size(plan['download_bytes'])} download\n"
             f"{AptManager.format_size(abs(disk))} {'additional disk space' if disk >= 0 else 'disk space freed'}"
         )
+        if self._inline_plan:
+            self._heading.set_visible(False)
+            self._phase.set_xalign(0)
+            self._status.set_xalign(0)
+            self._status.set_visible(removing or bool(plan.get("download_only")))
+            self._status.add_css_class("warning" if removing else "dim-label")
+            self._configuration_note.add_css_class("caption")
+            self._metrics["packages"].set_label(f"{len(changes):,}")
+            self._metrics["download"].set_label(AptManager.format_size(plan["download_bytes"]))
+            self._metrics["disk"].set_label(
+                f"{AptManager.format_size(abs(disk))} {'needed' if disk >= 0 else 'freed'}"
+            )
+            while child := self._action_chips.get_first_child():
+                self._action_chips.remove(child)
+            counts = Counter(change["action"] for change in changes)
+            for action, count in sorted(counts.items()):
+                label, color = ACTIONS[action]
+                self._action_chips.insert(status_chip(f"{count} to {label.lower()}", color), -1)
+            if plan.get("kept_back"):
+                self._action_chips.insert(
+                    status_chip(f"{len(plan['kept_back'])} kept back", "warning"), -1
+                )
         if plan.get("kept_back"):
             self._summary.set_label(
                 self._summary.get_label() + f"\n{len(plan['kept_back'])} updates kept back by APT"
@@ -308,7 +382,10 @@ class OperationView(Gtk.Box):
         self._cancel.set_visible(True)
         self._apply.set_visible(True)
         self._close.set_visible(False)
-        self._changes._search.grab_focus()
+        if self._inline_plan:
+            self._apply.grab_focus()
+        else:
+            self._changes._search.grab_focus()
 
     def _respond(self, apply: bool) -> None:
         try:
@@ -316,6 +393,11 @@ class OperationView(Gtk.Box):
             self._proc.stdin.flush()
         except (BrokenPipeError, OSError, ValueError):
             pass  # The process watcher reports the actual exit result.
+        if apply and self._inline_plan and self._on_event:
+            self._on_event({"event": "applying"})
+        self._status.set_visible(True)
+        self._status.remove_css_class("warning")
+        self._status.remove_css_class("dim-label")
         self._review.set_visible(False)
         self._changes.set_visible(apply and not self._compact)
         self._apply.set_visible(False)
@@ -329,6 +411,7 @@ class OperationView(Gtk.Box):
 
     def _finish(self, code: int) -> None:
         self._finished = True
+        self._status.set_visible(True)
         self._cancelled = self._cancelled or (code in (126, 127) and not self._error)
         success = code == 0 and self._complete and not self._error
         self._succeeded = success
@@ -398,8 +481,10 @@ class OperationView(Gtk.Box):
             return
         lines = self._log_tail.split("\n")
         if self._finished:
-            summary_lines = {line.strip() for line in self._status.get_label().splitlines()}
-            lines = [line for line in lines if line.strip() not in summary_lines]
+            summary_lines = {
+                " ".join(line.split()) for line in self._status.get_label().splitlines()
+            }
+            lines = [line for line in lines if " ".join(line.split()) not in summary_lines]
         has_details = any(line.strip() for line in lines)
         self._details.set_visible(has_details)
         self._details_group.set_visible(has_details)

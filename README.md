@@ -92,7 +92,7 @@ promise an absolute time bound for the operating system's DNS resolver.
   The overall bar uses APT's reported progress. Completed download and installation
   stages hide their bars. Upgrade buttons disappear during the operation.
   Successful operations and cancellations return to the page with a temporary
-  message, without a Done/Close step. Failures and completion warnings remain
+  message, without a Done/Close step. Failures remain
   visible for inspection. Per-package bars stay hidden before work begins.
   Package details offers one Remove action with an optional, unchecked
   **Purge configuration files** checkbox; either choice opens the dependency review.
@@ -146,7 +146,7 @@ promise an absolute time bound for the operating system's DNS resolver.
   Statistics report failures independently, with Retry; cached upgrade counts
   do not claim that remote repositories have just been checked.
 
-Operations retain warnings visibly at completion, and inline reviews scroll in
+Completed Updates operations show warnings once in a floating notification; failure details remain available. Inline reviews scroll in
 short windows. The [adversarial audit](docs/AUDIT-2026-09-24.md) records
 historical findings; [the current validation report](docs/QUALITY.md) tracks release limits.
 
@@ -304,8 +304,19 @@ their own OS identity. With no recognizable sources, Orbit reports the OS codena
 - [Nala adaptation notes](docs/NALA_REFERENCE.md)
 - [Historical September audit](docs/AUDIT-2026-09-24.md)
 
-History uses connecting lines and indentation to distinguish transactions, action
-groups and packages. Undo/redo icons offer tooltips and always open a fresh review.
+History uses expandable transaction rows with action groups and package lists. Undo/redo icons offer tooltips and always open a fresh review.
 Failed or cancelled entries describe requested changes, which may not have been
 applied. Corrupt history records are skipped, and unexpected read errors offer
 Retry instead of leaving the page loading.
+
+The Updates page has one split upgrade button. Its dropdown contains **Enable
+full-upgrade**, which permits dependency installations/removals in the reviewed
+plan. The existing package list shows all planned actions, including new
+packages and removals, then live per-package progress. Apply still approves the
+complete plan. Successful refresh warnings appear once in a floating notification for 12 seconds
+without a Done button; failed operations retain their diagnostics.
+
+Inline upgrade reviews group package totals, download size and disk usage in a
+summary card, with colored action chips. Removal warnings remain visible before
+approval. Completion toasts show a short warning count; the optional **Details**
+action opens individually formatted warning rows. The toast expires automatically.

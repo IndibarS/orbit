@@ -486,8 +486,49 @@ class OrbitWindow(Adw.ApplicationWindow):
         ).present(self)
         return False
 
-    def show_toast(self, message: str) -> None:
-        self._toasts.add_toast(Adw.Toast(title=message))
+    def show_toast(self, message: str, *, timeout: int = 5) -> None:
+        self._toasts.add_toast(Adw.Toast(title=message, timeout=timeout, use_markup=False))
+
+    def show_warning_toast(self, warnings: list[str], count: int):
+        """Keep the notification short; full messages are available on demand."""
+        from orbit_gtk.ui.widgets import action_row
+
+        toast = Adw.Toast(
+            title=f"Completed with {count} warning{'s' if count != 1 else ''}",
+            timeout=12,
+            use_markup=False,
+            button_label=tr("Details"),
+        )
+        messages = tuple(warnings)
+
+        def show_details(_toast):
+            dialog = Adw.Dialog(
+                title=tr("Operation warnings"), content_width=620, content_height=420
+            )
+            toolbar = Adw.ToolbarView()
+            toolbar.add_top_bar(Adw.HeaderBar())
+            page = Adw.PreferencesPage()
+            group = Adw.PreferencesGroup(
+                description=(
+                    f"Showing the latest {len(messages)} of {count} warnings."
+                    if count > len(messages)
+                    else "The operation completed with these warnings."
+                )
+            )
+            for index, message in enumerate(messages, 1):
+                row = action_row(title=f"Warning {index}", subtitle=message, subtitle_lines=0)
+                icon = Gtk.Image(icon_name="dialog-warning-symbolic")
+                icon.add_css_class("warning")
+                row.add_prefix(icon)
+                group.add(row)
+            page.add(group)
+            toolbar.set_content(page)
+            dialog.set_child(toolbar)
+            dialog.present(self)
+
+        toast.connect("button-clicked", show_details)
+        self._toasts.add_toast(toast)
+        return toast
 
     def refresh_all(self) -> None:
         """Reload APT off the UI thread and invalidate data pages once the snapshot is ready."""

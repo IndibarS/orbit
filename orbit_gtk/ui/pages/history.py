@@ -138,7 +138,6 @@ class HistoryPage(Gtk.Box):
                 else f"{transaction.altered_count} requested package changes"
             ),
         )
-        row.add_css_class("history-transaction")
         _, icon_name, color, _ = _ACTIONS.get(
             transaction.operation,
             (
@@ -202,7 +201,6 @@ class HistoryPage(Gtk.Box):
                     else f"{key.capitalize()} requests",
                     subtitle=f"{len(packages)} package{'s' if len(packages) != 1 else ''}",
                 )
-                group.add_css_class("history-branch")
                 icon = Gtk.Image(icon_name=icon_name)
                 icon.add_css_class(color)
                 group.add_prefix(icon)
@@ -212,7 +210,6 @@ class HistoryPage(Gtk.Box):
             details = expander_row(
                 title=tr("Transaction details"), subtitle=tr("Command and requested user")
             )
-            details.add_css_class("history-branch")
             details.add_row(
                 action_row(
                     title=tr("Command"), subtitle=transaction.command, subtitle_selectable=True

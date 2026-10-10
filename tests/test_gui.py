@@ -107,7 +107,9 @@ class GuiTests(unittest.TestCase):
         from types import SimpleNamespace
         from unittest.mock import patch
 
-        page._operation = SimpleNamespace(_cancelled=False, dismiss_automatically=False)
+        page._operation = SimpleNamespace(
+            _cancelled=False, dismiss_automatically=False, _warning_count=0
+        )
         with patch.object(self.window, "refresh_all"):
             page._operation_done(True)
         self.assertTrue(page._row_widgets["example:amd64"]["badge"].get_visible())
@@ -128,7 +130,8 @@ class GuiTests(unittest.TestCase):
         )
         self.assertFalse(page._row_widgets["example:amd64"]["badge"].get_visible())
         page._pending.clear()
-        self.assertFalse(page._row_widgets["example:amd64"]["progress_box"].get_visible())
+        self.assertTrue(page._row_widgets["example:amd64"]["progress_box"].get_visible())
+        self.assertFalse(page._row_widgets["example:amd64"]["bar"].get_visible())
         page._operation = None
         page._apply(
             page._generation,
@@ -297,8 +300,6 @@ class GuiTests(unittest.TestCase):
         row.set_expanded(True)
         self.assertEqual(len([w for w in descendants(row) if isinstance(w, Gtk.ListView)]), 2)
         self.assertEqual(page._package_subtitle("upgrade", transaction.upgraded_pkgs[0]), "1 → 2")
-        self.assertTrue(row.has_css_class("history-transaction"))
-        self.assertTrue(groups["Removed"].has_css_class("history-branch"))
         if os.environ.get("ORBIT_HISTORY_SCREENSHOT"):
             self.window.navigate("history")
             start = time.monotonic()
@@ -632,7 +633,10 @@ class GuiTests(unittest.TestCase):
 
         page = UpdatesPage(self.window.apt_manager, self.window)
         with patch.object(page, "start_operation") as start:
-            page._on_full_upgrade(None)
+            page._on_upgrade_all(None)
+            self.assertEqual(start.call_args.args[1][-1], "upgrade")
+            page._full_upgrade.set_active(True)
+            page._on_upgrade_all(None)
         self.assertEqual(start.call_args.args[0], "Review full upgrade")
         self.assertEqual(start.call_args.args[1][-1], "full-upgrade")
 
@@ -815,6 +819,70 @@ class GuiTests(unittest.TestCase):
         )
         self.assertIn("first 200", page._status.get_label())
 
+    def test_refresh_warning_is_temporary_without_close_button(self):
+        import json
+
+        page = self.window._pages["updates"]
+        events = [
+            {"event": "warning", "message": "Repository unavailable"},
+            {"event": "warning", "message": "Repository unavailable"},
+            {"event": "complete"},
+        ]
+        from unittest.mock import patch
+
+        with patch.object(
+            self.window, "show_warning_toast", wraps=self.window.show_warning_toast
+        ) as toast:
+            page.start_operation(
+                "Refresh",
+                [sys.executable, "-c", f"print({chr(10).join(json.dumps(e) for e in events)!r})"],
+            )
+            self.spin(lambda: page._operation is None)
+            toast.assert_called_once_with(["Repository unavailable"], 1)
+        self.assertFalse(page._operation_scroll.get_visible())
+        self.assertFalse(self.window._operation_active)
+        self.assertFalse(hasattr(page, "_notice_revealer"))
+
+    def test_warning_toast_is_concise_with_optional_formatted_details(self):
+        toast = self.window.show_warning_toast(["Repository <example> & archive unavailable"], 1)
+        self.assertEqual(toast.get_title(), "Completed with 1 warning")
+        self.assertEqual(toast.get_timeout(), 12)
+        self.assertFalse(toast.get_use_markup())
+        self.assertIsNone(self.window.get_visible_dialog())
+        toast.emit("button-clicked")
+        dialog = self.window.get_visible_dialog()
+        self.assertIsNotNone(dialog)
+        self.assertEqual(dialog.get_title(), "Operation warnings")
+        dialog.close()
+        toast.dismiss()
+
+    def test_inline_plan_includes_dependencies_and_removals(self):
+        page = self.window._pages["updates"]
+        changes = [
+            {"name": name, "action": action, "old_version": old, "new_version": new}
+            for name, action, old, new in [
+                ("added:amd64", "install", None, "1"),
+                ("removed:amd64", "remove", "1", None),
+            ]
+        ]
+        page._operation_event({"event": "plan", "changes": changes, "kept_back": []})
+        for change in changes:
+            row = page._row_widgets[change["name"]]
+            self.assertEqual(row["status"].get_label(), change["action"].capitalize())
+            self.assertTrue(row["progress_box"].get_visible())
+            self.assertFalse(row["bar"].get_visible())
+            self.assertFalse(row["button"].get_visible())
+        page._plan_search.set_text("added")
+        self.assertTrue(page._row_widgets["added:amd64"]["row"].get_visible())
+        self.assertFalse(page._row_widgets["removed:amd64"]["row"].get_visible())
+        self.assertEqual(len(page._pending), 2)
+        self.assertIn("1 of 2", page._plan_count.get_label())
+        page._plan_search.set_text("")
+        page._plan_filter.set_selected(page._plan_actions.index("remove"))
+        self.assertTrue(page._row_widgets["removed:amd64"]["row"].get_visible())
+        self.assertFalse(page._row_widgets["added:amd64"]["row"].get_visible())
+        self.assertEqual(len(page._pending), 2)
+
     def test_warning_is_visible_after_success(self):
         import json
 
@@ -978,6 +1046,18 @@ class GuiTests(unittest.TestCase):
         page = self.window._pages["updates"]
         page._list.append(page._make_row(PackageInfo(name="example", full_name="example:amd64")))
         row = page._row_widgets["example:amd64"]
+        self.assertEqual(row["progress_box"].get_orientation(), Gtk.Orientation.HORIZONTAL)
+        self.assertIs(row["progress_box"].get_first_child(), row["bar"])
+        self.assertIs(row["bar"].get_next_sibling(), row["status"])
+        page._operation_event(
+            {
+                "event": "progress",
+                "package": "example:amd64",
+                "message": "Installing example (amd64)",
+            }
+        )
+        self.assertEqual(row["status"].get_label(), "Installing")
+        self.assertEqual(row["status"].get_tooltip_text(), "Installing example (amd64)")
         page._operation_event(
             {
                 "event": "package-progress",
@@ -1298,13 +1378,27 @@ print(json.dumps({"event":"complete"}),flush=True)
         self.spin(lambda: page._operation._review.get_visible())
         self.assertIsNone(self.window.get_visible_dialog())
         self.assertIs(page._operation.get_parent(), page._operation_slot)
+        self.assertFalse(page._operation._changes.get_visible())
+        self.assertTrue(page._operation._review_card.get_visible())
+        self.assertFalse(page._operation._summary.get_visible())
+        self.assertEqual(page._operation._metrics["packages"].get_label(), "2")
+        self.assertEqual(page._operation._metrics["download"].get_label(), "4.0 KiB")
+        if os.environ.get("ORBIT_REVIEW_SCREENSHOT"):
+            start = time.monotonic()
+            self.spin(lambda: time.monotonic() - start > 0.4)
+            subprocess.run(
+                ["import", "-window", "root", os.environ["ORBIT_REVIEW_SCREENSHOT"]], check=True
+            )
+        self.assertEqual(page._row_widgets["example:amd64"]["status"].get_label(), "Upgrade")
+        self.assertTrue(page._row_widgets["example:amd64"]["progress_box"].get_visible())
+        self.assertFalse(page._row_widgets["example:amd64"]["bar"].get_visible())
         page._operation._respond(True)
         first, second = page._row_widgets["example:amd64"], page._row_widgets["example:i386"]
         self.spin(lambda: second["bar"].get_fraction() == 0.75)
         self.assertEqual(first["bar"].get_fraction(), 0.25)
         page._operation._proc.stdin.write("next\n")
         page._operation._proc.stdin.flush()
-        self.spin(lambda: first["status"].get_label() == "Unpacking example")
+        self.spin(lambda: first["status"].get_label() == "Unpacking")
         self.assertIn("example:amd64", page._pulsing)
         self.assertEqual(second["bar"].get_fraction(), 0.75)
         if os.environ.get("ORBIT_PROGRESS_SCREENSHOT"):

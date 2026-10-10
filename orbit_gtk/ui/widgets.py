@@ -49,12 +49,6 @@ def expander_row(*, title: str = "", subtitle: str = "", **properties) -> Adw.Ex
             f"{header} {{ -gtk-icon-transform: rotate(0.5turn); color: inherit; }}"
             f"{header}:dir(rtl) {{ -gtk-icon-transform: rotate(-0.5turn); }}"
             f"{expanded} {{ -gtk-icon-transform: rotate(0turn); }}"
-            "row.history-transaction > box > revealer > list.nested, "
-            "row.history-branch > box > revealer > list.nested { "
-            "margin: 0 12px 12px 20px; padding-left: 10px; "
-            "border-left: 2px solid alpha(currentColor, 0.22); background: transparent; }"
-            "row.history-transaction > box > list > row.header .title { font-weight: 700; }"
-            "row.history-branch > box > list > row.header .title { font-weight: 600; }"
         )
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), _EXPANDER_STYLE, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
